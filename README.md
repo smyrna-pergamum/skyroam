@@ -9,9 +9,9 @@
 
 ## Website and launch links / Web sitesi ve başlatma bağlantıları
 
-The site (`index.html`) lets you type any town and take off from it; it opens the game with a launch link. You can build these links yourself:
+The site (`index.html`) is an experimental, scroll-driven film: one evening flight from Istanbul to Pergamon over the live map. As you scroll, the plane flies, the sun sets and city lights come on, and the aircraft changes from the 1903 Wright Flyer to the A380. At the end you type any town and take off from it; the site opens the game with a launch link. You can build these links yourself:
 
-Site (`index.html`) bir yer adı yazıp oradan havalanmanı sağlar; oyunu bir başlatma bağlantısıyla açar. Bu bağlantıları kendin de kurabilirsin:
+Site (`index.html`) deneysel, kaydırmayla ilerleyen bir film: canlı harita üzerinde İstanbul’dan Bergama’ya tek bir akşam uçuşu. Kaydırdıkça uçak uçar, güneş batar, şehir ışıkları yanar ve uçak 1903 Wright Flyer’dan A380’e dönüşür. Sonunda herhangi bir yer adı yazıp oradan havalanırsın; site oyunu bir başlatma bağlantısıyla açar. Bu bağlantıları kendin de kurabilirsin:
 
 ```
 play.html?fly=1&lat=41.04&lon=29.02&name=Istanbul&ac=a320neo&hdg=20&alt=700&cam=cockpit&lang=tr
@@ -128,8 +128,9 @@ Then open <http://localhost:8000> for the site, or <http://localhost:8000/play.h
 ## Project structure
 
 ```
-index.html        website: town search, aircraft by year, cockpit, sounds, phone, map modes
-site/             website styles, script and screenshots (taken from the game)
+index.html        website: scroll-driven evening flight Istanbul to Pergamon, then take off from any town
+site/world.js     the website's flight: route, camera, dusk, aircraft swaps, sound, town search
+site/world.css    website styles (site/tokens.css, site/base.css underneath)
 play.html         the game: welcome screen, menu (flight / aircraft / settings), HUD
 style.css         game UI and HUD styles
 js/main.js        viewer, map modes, game loop, camera, HUD, launch links
@@ -168,6 +169,7 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
 - 3D mode: Cesium World Terrain, Bing Maps imagery and Cesium OSM Buildings via Cesium ion (© OpenStreetMap contributors)
 - Lite mode: Esri World Imagery tiles (© Esri, Maxar, Earthstar Geographics). Check [Esri's terms](https://www.esri.com/en-us/legal/terms/full-master-agreement) before heavy or commercial use.
 - City search: [Open-Meteo Geocoding API](https://open-meteo.com/) (data from GeoNames, CC BY 4.0)
+- Website city lights: [NASA Black Marble](https://earthobservatory.nasa.gov/features/NightLights) via NASA GIBS (public domain)
 - Minimap: map tiles and place names © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL), via tile.openstreetmap.org and Nominatim
 - Aircraft models are generated in code from public dimensions for this project. They are simplified likenesses, not official models. Aircraft names are their makers' trademarks and are used only to identify the types.
 - Sounds from [Pixabay](https://pixabay.com/sound-effects/) under the [Pixabay Content License](https://pixabay.com/service/license-summary/):

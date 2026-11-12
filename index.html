@@ -2,184 +2,119 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>SkyRoam, a free flight game over the real world</title>
-  <meta name="description" content="Fly 100 real aircraft over the real map, from your own town, in your browser. Free, no account, works on phones.">
-  <meta name="theme-color" content="#0d1424">
+  <meta name="description" content="One evening flight from Istanbul to Pergamon, over the real map. Then take off from your own town: 100 real aircraft, free, in your browser.">
+  <meta name="theme-color" content="#090d18">
   <meta property="og:title" content="SkyRoam">
-  <meta property="og:description" content="Take off from your own street. A free flight game over the real map.">
+  <meta property="og:description" content="The whole world is a runway. A free flight game over the real map.">
   <meta property="og:image" content="site/img/istanbul-1600.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..700&display=swap">
-  <link rel="preload" as="image" href="site/img/istanbul-1600.jpg" imagesrcset="site/img/istanbul-960.jpg 960w, site/img/istanbul-1600.jpg 1600w, site/img/istanbul-2400.jpg 2400w" imagesizes="100vw">
-  <link rel="stylesheet" href="site/site.css">
-  <script>document.documentElement.classList.add('js');</script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,200..600;1,62..125,200..500&display=swap">
+  <link rel="stylesheet" href="site/world.css">
+  <script>document.documentElement.classList.add('js'); if (!location.hash) document.documentElement.classList.add('gated');</script>
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.123.0/Build/Cesium/Cesium.js" defer></script>
 </head>
 <body>
-  <a class="skip" href="#main" data-i18n="skip">Skip to content</a>
+  <a class="skip" href="#ch5" data-i18n="skip">Skip to take-off</a>
 
-  <header class="nav">
-    <div class="container nav__in">
-      <a class="wordmark" href="./" aria-label="SkyRoam home">SkyRoam</a>
-      <nav aria-label="Sections">
-        <ul class="nav__links">
-          <li><a href="#aircraft" data-i18n="navAircraft">Aircraft</a></li>
-          <li><a href="#cockpit" data-i18n="navCockpit">Cockpit</a></li>
-          <li><a href="#phone" data-i18n="navPhone">Phone</a></li>
-          <li><a href="#map" data-i18n="navMap">Map</a></li>
-        </ul>
-      </nav>
-      <div class="nav__end">
-        <button class="lang" type="button" id="langBtn" aria-label="Türkçe">TR</button>
-        <a class="btn btn--quiet btn--sm" href="play.html" data-i18n="navPlay">Play</a>
-      </div>
+  <!-- the world: the real map, drawn by Cesium, behind everything -->
+  <div class="world" id="world" aria-hidden="true"></div>
+  <div class="sunset" aria-hidden="true"></div>
+  <div class="dusk" aria-hidden="true"></div>
+  <div class="veil" aria-hidden="true"></div>
+
+  <!-- entrance: loading the planet, then in with sound -->
+  <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateHead">
+    <p class="gate__mark">SkyRoam</p>
+    <h1 class="gate__head" id="gateHead" data-i18n="gateHead">The whole world is a runway.</h1>
+    <div class="gate__load">
+      <p class="gate__pct num"><span id="pct">0</span><small>%</small></p>
+      <div class="gate__bar"><span id="pctBar"></span></div>
+      <p class="gate__line" id="gateLine" data-i18n="gateLoading">Loading the planet under your wings.</p>
     </div>
+    <div class="gate__go" id="gateGo">
+      <button class="pill" type="button" id="enterSound" data-i18n="enter">Enter the sky</button>
+      <button class="quiet" type="button" id="enterQuiet" data-i18n="enterQuiet">Enter without sound</button>
+    </div>
+    <p class="gate__note" data-i18n="gateNote">Enter with sound. You can turn it off anytime.</p>
+  </div>
+
+  <header class="top">
+    <a class="top__mark" href="./">SkyRoam</a>
+    <nav class="top__nav" aria-label="Site">
+      <button class="quiet" type="button" id="langBtn" aria-label="Türkçe">TR</button>
+      <a class="top__play" href="play.html" data-i18n="play">Play now</a>
+    </nav>
   </header>
 
   <main id="main">
-    <!-- 1. Hero: the real game over Istanbul, and the town you take off from -->
-    <section class="hero" aria-labelledby="heroHead">
-      <figure class="hero__shot" data-slot="hero" data-alt="An Airbus A320neo flying over the Bosphorus in Istanbul, seen from behind">
-        <img src="site/img/istanbul-1600.jpg"
-             srcset="site/img/istanbul-960.jpg 960w, site/img/istanbul-1600.jpg 1600w, site/img/istanbul-2400.jpg 2400w" sizes="100vw"
-             width="2400" height="1500" alt="An Airbus A320neo flying over the Bosphorus in Istanbul, seen from behind" fetchpriority="high">
-      </figure>
-      <div class="container hero__in">
-        <h1 id="heroHead" class="hero__head" data-i18n="heroHead">Take off from your own street.</h1>
-        <p class="hero__lead" data-i18n="heroLead">A free flight game over the real map, right in your browser.</p>
+    <section class="chapter" id="ch1" data-n="01" aria-labelledby="h1">
+      <div class="chapter__text">
+        <p class="chapter__where" data-i18n="w1">Istanbul, the Bosphorus</p>
+        <h2 class="chapter__head" id="h1" data-i18n="h1">Take off from your own street.</h2>
+        <p class="chapter__lead" data-i18n="l1">SkyRoam is a free flight game over the real map of the whole planet. It runs in your browser.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch2" data-n="02" aria-labelledby="h2">
+      <div class="chapter__text">
+        <p class="chapter__where" data-i18n="w2">Over the Sea of Marmara</p>
+        <h2 class="chapter__head" id="h2" data-i18n="h2">A century of wings.</h2>
+        <p class="chapter__lead" data-i18n="l2">One hundred real aircraft, each built from its real size and speed. Keep scrolling and watch them change.</p>
+        <p class="chapter__plane num" id="planeName" aria-live="polite">Wright Flyer, 1903</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch3" data-n="03" aria-labelledby="h3">
+      <div class="chapter__text">
+        <p class="chapter__where" data-i18n="w3">The Dardanelles, at sunset</p>
+        <h2 class="chapter__head" id="h3" data-i18n="h3">Sit up front.</h2>
+        <p class="chapter__lead" data-i18n="l3">Glass screens in airliners, round dials in a Cessna, and a voice that tells you to pull up.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch4" data-n="04" aria-labelledby="h4">
+      <div class="chapter__text">
+        <p class="chapter__where" data-i18n="w4">Troy, as the lights come on</p>
+        <h2 class="chapter__head" id="h4" data-i18n="h4">Fly with two thumbs.</h2>
+        <p class="chapter__lead" data-i18n="l4">On a phone, keyboard or gamepad. No install, no account, no ads.</p>
+      </div>
+    </section>
+
+    <section class="chapter chapter--end" id="ch5" data-n="05" aria-labelledby="h5">
+      <div class="chapter__text">
+        <p class="chapter__where" data-i18n="w5">Pergamon, after dark</p>
+        <h2 class="chapter__head" id="h5" data-i18n="h5">Where will you take off?</h2>
         <form class="takeoff" id="takeoff" action="play.html" method="get" role="search" autocomplete="off">
           <label class="visually-hidden" for="town" data-i18n="townLabel">Town or city to take off from</label>
-          <input class="takeoff__input" id="town" name="town" type="search" placeholder="Type a town, like Bergama" data-i18n-ph="townPh" aria-describedby="takeoffMsg">
-          <button class="btn" type="submit" id="takeoffBtn" data-i18n="takeoff">Take off</button>
+          <input class="takeoff__input" id="town" name="town" type="search" placeholder="Type any town" data-i18n-ph="townPh" aria-describedby="takeoffMsg">
+          <button class="pill" type="submit" id="takeoffBtn" data-i18n="takeoff">Take off</button>
         </form>
         <p class="takeoff__msg" id="takeoffMsg" role="status" aria-live="polite"></p>
         <ul class="takeoff__list" id="townList" hidden></ul>
-        <p class="hero__caption" data-i18n="heroCaption">Above: the Bosphorus, Istanbul, in an Airbus A320neo. A real screenshot.</p>
-      </div>
-    </section>
-
-    <!-- 2. A century of aircraft, scrubbed by year -->
-    <section class="fleet" id="aircraft" aria-labelledby="fleetHead">
-      <div class="container">
-        <div class="fleet__top">
-          <h2 id="fleetHead" class="section-head" data-i18n="fleetHead">One hundred aircraft, 1903 to now.</h2>
-          <p class="section-lead" data-i18n="fleetLead">Each one built from its real size and speed, and each flies like itself.</p>
-        </div>
-        <div class="fleet__stage" id="fleetStage">
-          <p class="fleet__year num" id="acYear">1903</p>
-          <div class="fleet__card">
-            <h3 class="fleet__name" id="acName">Wright Flyer</h3>
-            <p class="fleet__meta" id="acMeta">Wright Brothers, USA. First powered aeroplane</p>
-            <dl class="fleet__specs">
-              <div><dt data-i18n="span">Wingspan</dt><dd class="num" id="acSpan">12.3 m</dd></div>
-              <div><dt data-i18n="top">Top speed</dt><dd class="num" id="acTop">48 km/h</dd></div>
-            </dl>
-            <div class="fleet__bar" aria-hidden="true"><span id="acBar"></span></div>
-            <a class="link" id="acFly" href="play.html?ac=wright-flyer" data-i18n="flyIt">Fly this one</a>
-          </div>
-        </div>
-        <div class="fleet__scrub" id="fleetScrub" hidden>
-          <button class="step" type="button" id="acPrev" aria-label="Previous aircraft"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-          <label class="visually-hidden" for="acRange" data-i18n="scrubLabel">Aircraft by year</label>
-          <input type="range" id="acRange" min="0" max="99" value="0" step="1">
-          <button class="step" type="button" id="acNext" aria-label="Next aircraft"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-        </div>
-        <div class="seg" id="acCats" role="group" aria-label="Aircraft type" hidden>
-          <button type="button" aria-pressed="true" data-cat="all" data-i18n="catAll">All</button>
-          <button type="button" aria-pressed="false" data-cat="historic" data-i18n="catHistoric">Historic</button>
-          <button type="button" aria-pressed="false" data-cat="commercial" data-i18n="catCommercial">Airliners</button>
-          <button type="button" aria-pressed="false" data-cat="civil" data-i18n="catCivil">Light and business</button>
-          <button type="button" aria-pressed="false" data-cat="military" data-i18n="catMilitary">Military</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. The cockpit -->
-    <section class="cockpit" id="cockpit" aria-labelledby="cockpitHead">
-      <div class="container cockpit__grid">
-        <figure class="shot shot--wide" data-slot="cockpit" data-alt="The Boeing 777 cockpit over Dubai: speed tape, horizon, engine gauges and the minimap">
-          <img src="site/img/cockpit-1600.jpg" srcset="site/img/cockpit-960.jpg 960w, site/img/cockpit-1600.jpg 1600w" sizes="(min-width: 60rem) 62vw, 100vw"
-               width="1600" height="1000" alt="The Boeing 777 cockpit over Dubai: speed tape, horizon, engine gauges and the minimap" loading="lazy">
-        </figure>
-        <div class="cockpit__text">
-          <h2 id="cockpitHead" class="section-head" data-i18n="cockpitHead">Sit up front.</h2>
-          <p class="section-lead" data-i18n="cockpitLead">Press C for the cockpit: glass screens in airliners, round dials in a Cessna, and a map that turns with you.</p>
-          <p class="caption" data-i18n="cockpitCaption">Boeing 777-300ER over Dubai.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 4. Listen -->
-    <section class="listen" aria-labelledby="listenHead">
-      <div class="container">
-        <h2 id="listenHead" class="section-head" data-i18n="listenHead">Turn the sound on.</h2>
-        <p class="section-lead" data-i18n="listenLead">Real engine recordings, and the cockpit talks back when you get it wrong.</p>
-        <ul class="sounds" id="sounds">
-          <li><button class="sound" type="button" data-src="sounds/prop.mp3" data-from="2" aria-pressed="false"><span class="sound__name" data-i18n="sProp">Propeller</span><span class="sound__what" data-i18n="sPropWhat">Piston engine at cruise</span></button></li>
-          <li><button class="sound" type="button" data-src="sounds/jet.mp3" data-from="1.5" aria-pressed="false"><span class="sound__name" data-i18n="sJet">Jet</span><span class="sound__what" data-i18n="sJetWhat">Turbofans spooling up</span></button></li>
-          <li><button class="sound" type="button" data-src="sounds/gear.mp3" data-from="5.3" aria-pressed="false"><span class="sound__name" data-i18n="sGear">Gear down</span><span class="sound__what" data-i18n="sGearWhat">Below 180 metres, on its own</span></button></li>
-          <li><button class="sound" type="button" data-say="pull up, pull up" aria-pressed="false"><span class="sound__name" data-i18n="sPull">Pull up</span><span class="sound__what" data-i18n="sPullWhat">When the ground comes too fast</span></button></li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- 5. Phone -->
-    <section class="phone" id="phone" aria-labelledby="phoneHead">
-      <div class="container phone__grid">
-        <div class="phone__text">
-          <h2 id="phoneHead" class="section-head" data-i18n="phoneHead">Fly with two thumbs.</h2>
-          <p class="section-lead" data-i18n="phoneLead">On a phone, the left thumb steers and the right one runs throttle, rudder, gear and camera. At a desk, use the keyboard or a gamepad.</p>
-          <p class="caption" data-i18n="phoneCaption">Cessna 172 over Bergama, on a phone.</p>
-        </div>
-        <figure class="shot shot--phone" data-slot="phone" data-alt="SkyRoam on a phone: a Cessna over Bergama with the touch stick, buttons and throttle">
-          <img src="site/img/phone-780.jpg" width="780" height="1688" sizes="(min-width: 60rem) 360px, 70vw"
-               alt="SkyRoam on a phone: a Cessna over Bergama with the touch stick, buttons and throttle" loading="lazy">
-        </figure>
-      </div>
-    </section>
-
-    <!-- 6. Map and token -->
-    <section class="map" id="map" aria-labelledby="mapHead">
-      <div class="container">
-        <h2 id="mapHead" class="section-head" data-i18n="mapHead">Your map, your key.</h2>
-        <div class="modes">
-          <div class="mode">
-            <h3 class="mode__name" data-i18n="liteName">Lite</h3>
-            <p data-i18n="liteText">Opens at once. Satellite photos of the whole planet, on flat ground.</p>
-          </div>
-          <div class="mode">
-            <h3 class="mode__name" data-i18n="fullName">3D</h3>
-            <p data-i18n="fullText">Add your own free Cesium ion key for mountains, valleys and buildings. It stays in your browser.</p>
-          </div>
-          <div class="mode">
-            <h3 class="mode__name" data-i18n="privName">Nothing else</h3>
-            <p data-i18n="privText">No account, no ads, no analytics. The code is open on GitHub.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 7. The way out -->
-    <section class="last" aria-labelledby="lastHead">
-      <div class="container last__in">
-        <h2 id="lastHead" class="last__head" data-i18n="lastHead">Where will you take off?</h2>
-        <a class="btn btn--quiet btn--lg" href="#main" id="backToTown" data-i18n="lastBtn">Pick a town</a>
+        <p class="chapter__small" data-i18n="l5">The map is free and flat in Lite mode. Add your own free Cesium ion key for mountains and buildings; it never leaves your browser.</p>
+        <p class="chapter__links"><a href="play.html" data-i18n="openGame">Open the game</a> <a href="https://github.com/smyrna-pergamum/skyroam" data-i18n="source">Source code</a></p>
       </div>
     </section>
   </main>
 
-  <footer class="foot">
-    <div class="container foot__in">
-      <p class="wordmark wordmark--foot">SkyRoam</p>
-      <ul class="foot__links">
-        <li><a href="play.html" data-i18n="footPlay">Play</a></li>
-        <li><a href="https://github.com/smyrna-pergamum/skyroam" data-i18n="footCode">Source code</a></li>
-      </ul>
-      <p class="foot__credits" data-i18n="credits">Map by CesiumJS with Esri imagery and OpenStreetMap. Place search by Open-Meteo. Sounds from Pixabay. Screenshots are from the game.</p>
+  <!-- chrome along the bottom, like an instrument strip -->
+  <div class="strip" id="strip">
+    <div class="strip__tools">
+      <button class="quiet" type="button" id="soundBtn" aria-pressed="false" data-i18n="soundOff">Sound off</button>
+      <button class="quiet" type="button" id="motionBtn" aria-pressed="false" data-i18n="motion">Reduce motion</button>
+      <button class="quiet" type="button" id="clearBtn" aria-pressed="false" data-i18n="clear">Clear view</button>
     </div>
-  </footer>
+    <div class="strip__chapter" aria-hidden="true">
+      <p class="strip__label"><span id="chN">01</span> <span id="chName" data-i18n="c1">Take off</span></p>
+      <ol class="strip__dots" id="dots"><li></li><li></li><li></li><li></li><li></li></ol>
+    </div>
+    <p class="strip__hint" id="hint" data-i18n="hint">Scroll to fly forward</p>
+  </div>
+  <div class="credits" id="credits"></div>
 
-  <script type="module" src="site/site.js"></script>
+  <script type="module" src="site/world.js"></script>
 </body>
 </html>

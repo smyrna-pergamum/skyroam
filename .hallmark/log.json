@@ -1,5 +1,33 @@
 [
  {
+  "shape": "one flight, scroll-driven, five chapters",
+  "theme": "custom",
+  "axes": "dark/grotesk-sans/warm",
+  "hero": "entrance gate over the live globe, loading figure, Enter the sky",
+  "nav": "wordmark, language, Play now",
+  "footer": "instrument strip with sound, motion, clear view and chapter dots",
+  "imagery": "live CesiumJS map and the game models",
+  "photos": [],
+  "entry": "gate",
+  "fingerprint": "dusk-flight golden-trail archivo-wide-caps",
+  "sections": [
+   "gate",
+   "take off",
+   "century of wings",
+   "cockpit",
+   "two thumbs",
+   "where will you take off"
+  ],
+  "signature": "scroll to fly: the sun sets and the aircraft change from 1903 to now",
+  "waived": [
+   "77",
+   "79"
+  ],
+  "prompt": "SkyRoam experimental website like georgedo.com",
+  "date": "2026-11-12",
+  "mode": "build"
+ },
+ {
   "shape": "the flight, take-off to landing",
   "theme": "custom",
   "axes": "dark/grotesk-sans/warm",
