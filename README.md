@@ -1,17 +1,29 @@
 # SkyRoam ✈
 
-**A browser flight game over the real world.** Pick an aircraft, pick any city on Earth or a world-famous historic site, and fly. No install, no server: one static page.
+**A browser flight game over the real world.** Pick one of 100 real aircraft, pick any town on Earth or a world-famous historic site, and fly. No install, no account, no server: a static site with a website and the game.
 
-**Gerçek dünya haritası üzerinde tarayıcıda uçuş oyunu.** Uçağını seç, dünyadaki herhangi bir şehri ya da ünlü bir tarihi alanı seç ve uç. Kurulum yok, sunucu yok: tek bir statik sayfa.
+**Gerçek dünya haritası üzerinde tarayıcıda uçuş oyunu.** 100 gerçek uçaktan birini seç, dünyadaki herhangi bir yeri ya da ünlü bir tarihi alanı seç ve uç. Kurulum yok, hesap yok, sunucu yok: bir web sitesi ve oyundan oluşan statik bir site.
 
-**Website / Web sitesi: <https://smyrna-pergamum.github.io/skyroam/>**
-**▶ Play / Oyna: <https://smyrna-pergamum.github.io/skyroam/play.html>**
+| | |
+|---|---|
+| **Website / Web sitesi** | <https://smyrna-pergamum.github.io/skyroam/> |
+| **▶ Play / Oyna** | <https://smyrna-pergamum.github.io/skyroam/play.html> |
 
-## Website and launch links / Web sitesi ve başlatma bağlantıları
+![SkyRoam: an Airbus A320neo over the Bosphorus, Istanbul (a screenshot from the game)](site/img/istanbul-1600.jpg)
 
-The site (`index.html`) is an experimental, scroll-driven film: one evening flight from Istanbul to Pergamon over the live map. As you scroll, the plane flies, the sun sets and city lights come on, and the aircraft changes from the 1903 Wright Flyer to the A380. At the end you type any town and take off from it; the site opens the game with a launch link. You can build these links yourself:
+## Website / Web sitesi
 
-Site (`index.html`) deneysel, kaydırmayla ilerleyen bir film: canlı harita üzerinde İstanbul’dan Bergama’ya tek bir akşam uçuşu. Kaydırdıkça uçak uçar, güneş batar, şehir ışıkları yanar ve uçak 1903 Wright Flyer’dan A380’e dönüşür. Sonunda herhangi bir yer adı yazıp oradan havalanırsın; site oyunu bir başlatma bağlantısıyla açar. Bu bağlantıları kendin de kurabilirsin:
+The website (`index.html`) is an experimental, scroll-driven film: one evening flight from Istanbul over the Sea of Marmara, the Dardanelles and Troy to Pergamon, on the live map. It opens with a gate that loads the planet and lets you enter with sound. As you scroll, the plane flies along a golden trail, the sun sets, city lights come on and, in one chapter, the aircraft changes from the 1903 Wright Flyer to the A380. At the end you type any town and the game opens, already flying from there. Sound, Reduce motion and Clear view are in the strip at the bottom.
+
+Web sitesi (`index.html`) deneysel, kaydırmayla ilerleyen bir film: canlı harita üzerinde İstanbul’dan Marmara, Çanakkale Boğazı ve Truva üzerinden Bergama’ya tek bir akşam uçuşu. Gezegeni yükleyen ve sesle girmeni sağlayan bir kapıyla açılır. Kaydırdıkça uçak altın rengi bir iz boyunca uçar, güneş batar, şehir ışıkları yanar ve bir bölümde uçak 1903 Wright Flyer’dan A380’e dönüşür. Sonunda herhangi bir yer adı yazarsın; oyun oradan uçarak açılır. Ses, hareketi azaltma ve sade görünüm alttaki şeritte.
+
+The design is also published as a reusable AI design skill: [live-globe-flight-film](https://github.com/smyrna-pergamum/web-design-skills/tree/main/skills/live-globe-flight-film) in [web-design-skills](https://smyrna-pergamum.github.io/web-design-skills/).
+
+Tasarım, yeniden kullanılabilir bir yapay zekâ tasarım becerisi olarak da yayımlandı: [web-design-skills](https://smyrna-pergamum.github.io/web-design-skills/) içinde [live-globe-flight-film](https://github.com/smyrna-pergamum/web-design-skills/tree/main/skills/live-globe-flight-film).
+
+## Launch links / Başlatma bağlantıları
+
+Any page can open the game at a place and in an aircraft. / Herhangi bir sayfa oyunu bir yerde ve bir uçakla açabilir.
 
 ```
 play.html?fly=1&lat=41.04&lon=29.02&name=Istanbul&ac=a320neo&hdg=20&alt=700&cam=cockpit&lang=tr
@@ -90,6 +102,7 @@ The token is stored only in the player's browser (`localStorage`, or `sessionSto
 - "Take off from where I am" uses the browser's location permission; the position stays in the browser.
 - The minimap loads map tiles from tile.openstreetmap.org. About every 20 seconds, and only after you have moved a few kilometres, it sends your rounded position to [Nominatim](https://nominatim.org/) to show the place name. This follows the [OSM tile](https://operations.osmfoundation.org/policies/tiles/) and [Nominatim](https://operations.osmfoundation.org/policies/nominatim/) usage policies.
 - Settings, custom aircraft and best times are kept in `localStorage`. There is no server and no tracking.
+- The website loads map tiles from Esri and NASA GIBS, its font from Google Fonts, and sends a typed town name to Open-Meteo only when you press Take off. It has no analytics; your language choice is kept in `localStorage`.
 
 ## Controls / Kontroller
 
@@ -131,6 +144,7 @@ Then open <http://localhost:8000> for the site, or <http://localhost:8000/play.h
 index.html        website: scroll-driven evening flight Istanbul to Pergamon, then take off from any town
 site/world.js     the website's flight: route, camera, dusk, aircraft swaps, sound, town search
 site/world.css    website styles (site/tokens.css, site/base.css underneath)
+.hallmark/        design log of the website (Hallmark skill)
 play.html         the game: welcome screen, menu (flight / aircraft / settings), HUD
 style.css         game UI and HUD styles
 js/main.js        viewer, map modes, game loop, camera, HUD, launch links
@@ -149,9 +163,10 @@ js/plane.js       builds an aircraft's parts into one Cesium primitive
 js/input.js       keyboard + gamepad actions, radial deadzone
 js/rings.js       ring course generation and pass detection
 js/audio.js       WebAudio: recorded loops + synthesiser, chime, crash, gear
-sounds/           Pixabay sound effects (see credits)
 js/storage.js     safe localStorage helpers, token storage
 js/i18n.js        Turkish / English strings
+sounds/           Pixabay sound effects (see credits)
+site/img/         screenshot from the game (website fallback and preview image)
 ```
 
 Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the flight model are generated from it. Adding a place: add a row to `js/places.js`.
@@ -179,4 +194,5 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
   - `wind.mp3`: "Wind Loop" by freesound_community
   - `crash.mp3`: "Boom Crash" by DRAGON-STUDIO
   - `gear.mp3`: "Cockpit Sound of Landing Gear Deployment" by arunangshubanerjee
-- Attributions are shown in the in-game credit bar and must stay visible.
+- Website font: [Archivo](https://fonts.google.com/specimen/Archivo) via Google Fonts (SIL Open Font License)
+- Attributions are shown in the in-game credit bar and on the website, and must stay visible.
