@@ -38,6 +38,7 @@
 - **On-screen throttle lever**: drag it with mouse or finger, or use the mouse wheel over it
 - Keyboard, gamepad and touch
 - Recorded engine, turbine, wind, crash and landing-gear sounds (from Pixabay) layered over a small synthesiser
+- **Cockpit warnings** modelled on real aircraft: stall horn (light aircraft) or stick shaker (jets), overspeed clacker, and GPWS-style voice callouts (PULL UP, SINK RATE, TOO LOW GEAR, BANK ANGLE, STALL) plus radio-altitude callouts on landing (100 … 10 ft) in glass-cockpit aircraft. The voice uses the browser's speech synthesis; the tones are synthesised. You can switch the warnings off in the menu.
 - Turkish and English UI
 
 ## Map modes and your Cesium ion token
@@ -113,6 +114,7 @@ js/cockpit.js     cockpit interiors drawn on a canvas overlay (GA, glass, fighte
 js/fleet.js       100 real aircraft: dimensions, wing/tail/engine layout, speeds, livery
 js/fleetgen.js    turns a fleet entry into a 3D model (lofted meshes) and a flight model
 js/aircraft.js    roster, mods (hangar), old-id aliases
+js/warnings.js    cockpit warnings: stall horn / shaker, clacker, GPWS voice callouts
 js/feel.js        speed feel: dynamic FOV, camera lag, shake, speed lines
 js/minimap.js     OpenStreetMap minimap with compass
 js/touch.js       two-thumb touch controls

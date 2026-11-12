@@ -372,6 +372,7 @@ export function initMenu(ctx) {
   $('optInvert').addEventListener('change', e => { prefs.invert = e.target.checked; savePrefs(); ctx.onOptions(); });
   $('optAssist').addEventListener('change', e => { prefs.assist = e.target.checked; savePrefs(); });
   $('optCalm').addEventListener('change', e => { prefs.calm = e.target.checked; savePrefs(); });
+  $('optWarn').addEventListener('change', e => { prefs.warnings = e.target.checked; savePrefs(); });
   $$('input[name=mode]').forEach(r => r.addEventListener('change', () => { prefs.mode = r.value; savePrefs(); updateModeHint(); }));
   $('showWelcome').addEventListener('click', () => { $('welcome').hidden = false; });
 
@@ -432,6 +433,7 @@ export function initMenu(ctx) {
     $('optInvert').checked = !!prefs.invert;
     $('optAssist').checked = prefs.assist !== false;
     $('optCalm').checked = !!prefs.calm;
+    $('optWarn').checked = prefs.warnings !== false;
     $('optGoogle').checked = !!prefs.google3d;
     $('tokenInput').value = token ? '••••••••' : '';
     $('chosenPlace').textContent = getPlace().name;

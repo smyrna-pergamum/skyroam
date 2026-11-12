@@ -13,6 +13,7 @@ import { statsOf } from './aircraft.js';
 import { Feel } from './feel.js';
 import { MiniMap } from './minimap.js';
 import { TouchControls } from './touch.js';
+import { Warnings } from './warnings.js';
 
 const $ = id => document.getElementById(id);
 const RING_COUNT = 12;
@@ -20,7 +21,7 @@ const PREFS_KEY = 'skyroam.prefs';
 const BEST_KEY = 'skyroam.best';
 
 const prefs = Object.assign(
-  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true },
+  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true },
   readJSON(PREFS_KEY, {}),
 );
 const savePrefs = () => writeJSON(PREFS_KEY, prefs);
@@ -134,6 +135,8 @@ const sound = new EngineSound();
 const cockpit = new Cockpit($('cockpit'));
 const feel = new Feel($('feel'));
 const touch = new TouchControls(input, $('hud'));
+const warnings = new Warnings(sound);
+let warnLabel = '';
 const minimap = new MiniMap($('mmCanvas'), { place: $('mmPlace'), coords: $('mmCoords'), heading: $('mmHeading') }, () => getLang());
 document.body.classList.toggle('minimap-off', !prefs.minimap);
 let topSpeed = 60;
@@ -230,6 +233,7 @@ async function startFlight() {
 
 function setPhase(p) {
   phase = p;
+  if (p !== 'flying') { warnings.reset(); warnLabel = ''; }
   $('menu').hidden = !(p === 'menu' || p === 'paused');
   $('resumeBtn').hidden = p !== 'paused';
   $('result').hidden = !(p === 'crashed' || p === 'finished');
@@ -354,9 +358,8 @@ function updateHud(s, d) {
   hud.thr.style.width = `${Math.round(thr * 100)}%`;
   hud.thrTxt.textContent = ac.phys.engine === 'none' ? '—' : `${Math.round(thr * 100)}%`;
 
-  let warn = '';
-  if (s.stalled) warn = t('stall');
-  else if (!s.onGround && Number.isFinite(s.agl) && s.agl < 120 && s.vs < -12) warn = t('pullUp');
+  const WARN_TEXT = { 'STALL': 'stall', 'PULL UP': 'pullUp', 'SINK RATE': 'warnSink', 'TOO LOW GEAR': 'warnGear', 'BANK ANGLE': 'warnBank', 'OVERSPEED': 'warnOverspeed' };
+  const warn = warnLabel ? t(WARN_TEXT[warnLabel] || 'stall') : '';
   hud.warn.hidden = !warn;
   hud.warn.textContent = warn;
 
@@ -518,6 +521,8 @@ scene.preUpdate.addEventListener(() => {
 
   lerpSnap(prevSnap, curSnap, Math.min(1, accumulator / FIXED_DT), drawSnap);
   updateGear(dt);
+  warnings.enabled = prefs.warnings !== false;
+  warnLabel = warnings.update(state, ac, plane.gear, topSpeed, phase === 'flying');
   const M = plane.update(drawSnap);
   const fxOn = !prefs.calm;
   const fx = feel.update(dt, state, topSpeed, fxOn, camMode);

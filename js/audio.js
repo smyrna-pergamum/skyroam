@@ -62,7 +62,64 @@ export class EngineSound {
     this.noise.start();
     this.samples = {};
     this.loops = {};
+    this.buildAlarms();
     this.loadSamples();
+  }
+
+  // ---- cockpit alarms: continuous sources whose level is set every frame
+  buildAlarms() {
+    const ctx = this.ctx;
+    const out = gain => { const g = ctx.createGain(); g.gain.value = gain; g.connect(this.master); return g; };
+    this.alarm = {};
+    // Stall horn (light aircraft): reedy two-tone buzz
+    {
+      const g = out(0), bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = 2000; bp.Q.value = 1.4;
+      for (const f of [1650, 2210]) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = f; o.connect(bp); o.start(); }
+      bp.connect(g);
+      this.alarm.horn = g;
+    }
+    // Stick shaker (airliners/jets): low rumble chopped ~15 times a second
+    {
+      const g = out(0), lp = ctx.createBiquadFilter(), am = ctx.createGain(), lfo = ctx.createOscillator(), depth = ctx.createGain();
+      lp.type = 'lowpass'; lp.frequency.value = 260;
+      const src = ctx.createBufferSource(); src.buffer = this.noise.buffer; src.loop = true; src.start();
+      am.gain.value = 0.5; lfo.type = 'square'; lfo.frequency.value = 15; depth.gain.value = 0.5;
+      lfo.connect(depth).connect(am.gain); lfo.start();
+      const thump = ctx.createOscillator(); thump.type = 'triangle'; thump.frequency.value = 55; thump.connect(am); thump.start();
+      src.connect(lp).connect(am).connect(g);
+      this.alarm.shaker = g;
+    }
+    // Overspeed clacker: square wave edges through a high-pass = sharp clicks
+    {
+      const g = out(0), hp = ctx.createBiquadFilter(), o = ctx.createOscillator();
+      hp.type = 'highpass'; hp.frequency.value = 1800; o.type = 'square'; o.frequency.value = 7.5;
+      o.connect(hp).connect(g); o.start();
+      this.alarm.clacker = g;
+    }
+  }
+
+  /** levels: { horn, shaker, clacker } each 0..1 */
+  setAlarms(levels) {
+    if (!this.ctx || !this.alarm) return;
+    const t = this.ctx.currentTime;
+    this.alarm.horn.gain.setTargetAtTime((levels.horn || 0) * 0.07, t, 0.03);
+    this.alarm.shaker.gain.setTargetAtTime((levels.shaker || 0) * 0.9, t, 0.03);
+    this.alarm.clacker.gain.setTargetAtTime((levels.clacker || 0) * 0.5, t, 0.03);
+  }
+
+  /** Master-warning style triple chime. */
+  caution() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    [0, 0.16, 0.32].forEach(d => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 1000;
+      g.gain.setValueAtTime(0.0001, t + d);
+      g.gain.exponentialRampToValueAtTime(0.18, t + d + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.14);
+      o.connect(g).connect(this.master); o.start(t + d); o.stop(t + d + 0.16);
+    });
   }
 
   async loadSamples() {
