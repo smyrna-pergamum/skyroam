@@ -53,18 +53,23 @@ export class EngineSound {
     this.noise.start();
   }
 
-  update(throttle, speed, active) {
+  /** engine: 'prop' | 'jet' | 'none' */
+  update(throttle, speed, active, engine = 'prop') {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     const on = active ? 1 : 0;
-    const f = 45 + throttle * 70;
-    this.osc1.frequency.setTargetAtTime(f, t, 0.15);
-    this.osc2.frequency.setTargetAtTime(f * 0.5, t, 0.15);
-    this.filter.frequency.setTargetAtTime(350 + throttle * 1400, t, 0.2);
-    this.engGain.gain.setTargetAtTime(on * (0.035 + throttle * 0.06), t, 0.2);
-    const w = Math.min(1, speed / 110);
-    this.windGain.gain.setTargetAtTime(on * w * w * 0.12, t, 0.3);
-    this.windFilter.frequency.setTargetAtTime(400 + w * 900, t, 0.3);
+    const jet = engine === 'jet';
+    const eng = engine === 'none' ? 0 : 1;
+    // Props: low rumble. Jets: a higher turbine whine over more roar (wind channel).
+    const f = jet ? 140 + throttle * 320 : 45 + throttle * 70;
+    this.osc1.frequency.setTargetAtTime(f, t, jet ? 0.6 : 0.15);
+    this.osc2.frequency.setTargetAtTime(f * (jet ? 1.5 : 0.5), t, jet ? 0.6 : 0.15);
+    this.filter.frequency.setTargetAtTime((jet ? 900 : 350) + throttle * 1400, t, 0.2);
+    this.engGain.gain.setTargetAtTime(on * eng * (jet ? 0.012 + throttle * 0.025 : 0.035 + throttle * 0.06), t, 0.2);
+    const w = Math.min(1, speed / 140);
+    const roar = jet ? throttle * 0.1 : 0;
+    this.windGain.gain.setTargetAtTime(on * (w * w * 0.12 + roar), t, 0.3);
+    this.windFilter.frequency.setTargetAtTime(400 + w * 900 + (jet ? 300 : 0), t, 0.3);
   }
 
   /** One-shot chime for passing a ring. */

@@ -17,7 +17,7 @@
   <div id="hud" hidden>
     <div class="hud-top">
       <div id="hHeading" class="heading">000°</div>
-      <div id="hMode" class="mode-badge"></div>
+      <div id="hPlace" class="mode-badge"></div>
     </div>
 
     <div class="hud-left glass">
@@ -50,44 +50,138 @@
     <div class="hud-hint" data-i18n="hudHint"></div>
   </div>
 
-  <!-- Main menu -->
-  <div id="menu" class="overlay">
+  <!-- First-run welcome: Cesium ion token -->
+  <div id="welcome" class="overlay" hidden>
     <div class="panel">
+      <header class="brand">
+        <div>
+          <h1>SkyRoam</h1>
+          <p data-i18n="welcomeTitle"></p>
+        </div>
+        <button class="ghost small langBtn" type="button">EN</button>
+      </header>
+      <p data-i18n="welcomeLead"></p>
+      <div class="callout">
+        <strong data-i18n="welcomeWarnTitle"></strong>
+        <ul data-i18n-html="welcomeWarn"></ul>
+      </div>
+      <ol class="steps" data-i18n-html="tokenSteps"></ol>
+      <div class="field">
+        <label for="welcomeToken" data-i18n="tokenLabel"></label>
+        <input id="welcomeToken" type="password" autocomplete="off" spellcheck="false" placeholder="eyJhbGciOi...">
+      </div>
+      <label class="check"><input type="checkbox" id="welcomeRemember" checked><span data-i18n="tokenRemember"></span></label>
+      <div class="actions">
+        <button id="welcomeSkip" class="ghost" type="button" data-i18n="welcomeSkip"></button>
+        <button id="welcomeSave" class="primary" type="button" data-i18n="welcomeSave"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main menu -->
+  <div id="menu" class="overlay side">
+    <div class="panel menu-panel">
       <header class="brand">
         <div>
           <h1>SkyRoam</h1>
           <p data-i18n="tagline"></p>
         </div>
-        <button id="langBtn" class="ghost small" type="button">EN</button>
+        <button class="ghost small langBtn" type="button">EN</button>
       </header>
 
-      <div class="field">
-        <label for="locSelect" data-i18n="location"></label>
-        <select id="locSelect"></select>
-      </div>
+      <nav class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="fly" data-i18n="tabFly"></button>
+        <button type="button" role="tab" data-tab="plane" data-i18n="tabPlane"></button>
+        <button type="button" role="tab" data-tab="settings" data-i18n="tabSettings"></button>
+      </nav>
 
-      <div class="field">
-        <span class="label" data-i18n="mode"></span>
-        <div class="seg" role="radiogroup">
-          <label><input type="radio" name="mode" value="free" checked><span data-i18n="modeFree"></span></label>
-          <label><input type="radio" name="mode" value="rings"><span data-i18n="modeRings"></span></label>
+      <!-- Tab: flight -->
+      <section class="tab" data-panel="fly">
+        <div class="seg small-seg" role="radiogroup">
+          <label><input type="radio" name="placeCat" value="city" checked><span data-i18n="catCity"></span></label>
+          <label><input type="radio" name="placeCat" value="historic"><span data-i18n="catHistoric"></span></label>
+          <label><input type="radio" name="placeCat" value="nature"><span data-i18n="catNature"></span></label>
+          <label><input type="radio" name="placeCat" value="search"><span data-i18n="catSearch"></span></label>
         </div>
-        <p class="hint" id="modeHint"></p>
-      </div>
 
-      <div class="field row">
-        <label class="check"><input type="checkbox" id="optInvert"><span data-i18n="optInvert"></span></label>
-        <label class="check"><input type="checkbox" id="optAssist" checked><span data-i18n="optAssist"></span></label>
-      </div>
+        <div class="picker" data-pick="city">
+          <div class="field"><label for="contSel" data-i18n="continent"></label><select id="contSel"></select></div>
+          <div class="field"><label for="countrySel" data-i18n="country"></label><select id="countrySel"></select></div>
+          <div class="field"><label for="citySel" data-i18n="city"></label><select id="citySel"></select></div>
+        </div>
+        <div class="picker" data-pick="historic" hidden>
+          <div class="field"><label for="histSel" data-i18n="catHistoric"></label><select id="histSel"></select></div>
+        </div>
+        <div class="picker" data-pick="nature" hidden>
+          <div class="field"><label for="natSel" data-i18n="catNature"></label><select id="natSel"></select></div>
+        </div>
+        <div class="picker" data-pick="search" hidden>
+          <div class="field search-row">
+            <input id="searchInput" type="text" autocomplete="off" data-i18n-ph="searchPh">
+            <button id="searchBtn" class="secondary" type="button" data-i18n="searchBtn"></button>
+          </div>
+          <button id="geoBtn" class="ghost small" type="button" data-i18n="geoBtn"></button>
+          <div id="searchResults" class="results"></div>
+          <p class="hint" data-i18n="searchNote"></p>
+        </div>
 
-      <div class="actions">
-        <button id="resumeBtn" class="secondary" type="button" hidden data-i18n="resume"></button>
-        <button id="startBtn" class="primary" type="button" data-i18n="start"></button>
-      </div>
-      <p id="touchNote" class="hint warn-text" hidden data-i18n="touchNote"></p>
+        <div class="field">
+          <span class="label" data-i18n="mode"></span>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="mode" value="free" checked><span data-i18n="modeFree"></span></label>
+            <label><input type="radio" name="mode" value="rings"><span data-i18n="modeRings"></span></label>
+          </div>
+          <p class="hint" id="modeHint"></p>
+        </div>
 
-      <details id="mapBox">
-        <summary><span data-i18n="mapSettings"></span> <span id="mapStatus" class="pill"></span></summary>
+        <div class="field row">
+          <label class="check"><input type="checkbox" id="optInvert"><span data-i18n="optInvert"></span></label>
+          <label class="check"><input type="checkbox" id="optAssist" checked><span data-i18n="optAssist"></span></label>
+        </div>
+      </section>
+
+      <!-- Tab: aircraft -->
+      <section class="tab" data-panel="plane" hidden>
+        <div class="seg small-seg" role="radiogroup">
+          <label><input type="radio" name="acCat" value="all" checked><span data-i18n="acAll"></span></label>
+          <label><input type="radio" name="acCat" value="civil"><span data-i18n="acCivil"></span></label>
+          <label><input type="radio" name="acCat" value="commercial"><span data-i18n="acCommercial"></span></label>
+          <label><input type="radio" name="acCat" value="military"><span data-i18n="acMilitary"></span></label>
+          <label><input type="radio" name="acCat" value="mine"><span data-i18n="acMine"></span></label>
+        </div>
+        <div id="acGrid" class="ac-grid"></div>
+        <div class="actions">
+          <button id="hangarOpen" class="secondary" type="button" data-i18n="hangarOpen"></button>
+        </div>
+
+        <div id="hangar" class="hangar" hidden>
+          <h3 data-i18n="hangarTitle"></h3>
+          <p class="hint"><span data-i18n="hangarBase"></span>: <b id="hgBase"></b></p>
+          <div class="field">
+            <label for="hgName" data-i18n="buildName"></label>
+            <input id="hgName" type="text" maxlength="28" autocomplete="off">
+          </div>
+          <div class="slider"><label for="hgPower" data-i18n="modPower"></label><input id="hgPower" type="range" min="0.5" max="2" step="0.05"><output id="hgPowerOut"></output></div>
+          <div class="slider"><label for="hgWing" data-i18n="modWing"></label><input id="hgWing" type="range" min="0.7" max="1.4" step="0.05"><output id="hgWingOut"></output></div>
+          <div class="slider"><label for="hgAgility" data-i18n="modAgility"></label><input id="hgAgility" type="range" min="0.6" max="1.8" step="0.05"><output id="hgAgilityOut"></output></div>
+          <div class="colors">
+            <label><input id="hgColP" type="color"><span data-i18n="colPrimary"></span></label>
+            <label><input id="hgColS" type="color"><span data-i18n="colSecondary"></span></label>
+            <label><input id="hgColA" type="color"><span data-i18n="colAccent"></span></label>
+          </div>
+          <div id="hgStats" class="stats"></div>
+          <div class="actions">
+            <button id="hgDelete" class="ghost" type="button" data-i18n="hangarDelete"></button>
+            <button id="hgClose" class="ghost" type="button" data-i18n="hangarClose"></button>
+            <button id="hgSaveNew" class="secondary" type="button" data-i18n="hangarSaveNew"></button>
+            <button id="hgSave" class="primary" type="button" data-i18n="hangarSave"></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: settings -->
+      <section class="tab" data-panel="settings" hidden>
+        <h3><span data-i18n="mapSettings"></span> <span id="mapStatus" class="pill"></span></h3>
         <p data-i18n-html="tokenIntro"></p>
         <ol class="steps" data-i18n-html="tokenSteps"></ol>
         <div class="field">
@@ -100,17 +194,25 @@
         </div>
         <p class="hint" data-i18n="tokenPrivacy"></p>
         <div class="actions">
+          <button id="showWelcome" class="ghost small" type="button" data-i18n="showWelcome"></button>
           <button id="forgetBtn" class="ghost" type="button" data-i18n="tokenForget"></button>
           <button id="saveTokenBtn" class="secondary" type="button" data-i18n="tokenSave"></button>
         </div>
-      </details>
+        <h3 data-i18n="controls"></h3>
+        <table class="keys"><tbody id="keysTable"></tbody></table>
+      </section>
 
-      <details>
-        <summary data-i18n="controls"></summary>
-        <table class="keys">
-          <tbody id="keysTable"></tbody>
-        </table>
-      </details>
+      <footer class="menu-foot">
+        <div class="chosen">
+          <span>📍 <b id="chosenPlace"></b></span>
+          <span>✈ <b id="chosenPlane"></b></span>
+        </div>
+        <div class="actions">
+          <button id="resumeBtn" class="secondary" type="button" hidden data-i18n="resume"></button>
+          <button id="startBtn" class="primary" type="button" data-i18n="start"></button>
+        </div>
+        <p id="touchNote" class="hint warn-text" hidden data-i18n="touchNote"></p>
+      </footer>
     </div>
   </div>
 
