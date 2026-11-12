@@ -52,6 +52,12 @@ export function initMenu(ctx) {
     $$('input[name=placeCat]').forEach(r => { r.checked = r.value === p.cat; });
     $$('.picker').forEach(d => { d.hidden = d.dataset.pick !== p.cat; });
     renderSearchResults();
+    if (p.coords) {
+      $('coordLat').value = p.coords.lat;
+      $('coordLon').value = p.coords.lon;
+      $('coordHdg').value = p.coords.heading || '';
+      $('coordAlt').value = p.coords.userAlt ?? '';
+    }
   }
 
   function getPlace() {
@@ -59,6 +65,7 @@ export function initMenu(ctx) {
     if (p.cat === 'historic') return siteToPlace(HISTORIC[p.hist] || HISTORIC[0], getLang(), 'historic');
     if (p.cat === 'nature') return siteToPlace(NATURE[p.nat] || NATURE[0], getLang(), 'nature');
     if (p.cat === 'search' && p.search) return p.search;
+    if (p.cat === 'coords' && p.coords) return p.coords;
     const cont = CONTINENTS[p.cont] || CONTINENTS[0];
     const country = cont.countries[p.country] || cont.countries[0];
     return cityToPlace(country.c[p.city] || country.c[0], country, getLang());
@@ -136,6 +143,59 @@ export function initMenu(ctx) {
       placeChanged();
     }, () => ctx.toast(t('geoFail'), 3500), { timeout: 10000, maximumAge: 600000 });
   });
+
+  // ---- coordinates: decimal, DMS (41°00'29"N), or a pasted "lat, lon" pair
+  function parseAngle(str) {
+    const s = String(str).trim().toUpperCase().replace(/(\d),(\d)/g, '$1.$2');
+    if (!s) return NaN;
+    const nums = s.match(/\d+(?:\.\d+)?/g);
+    if (!nums || nums.length > 3) return NaN;
+    const [d, m = 0, sec = 0] = nums.map(Number);
+    if (m >= 60 || sec >= 60) return NaN;
+    const v = d + m / 60 + sec / 3600;
+    return /^-|[SWG]/.test(s) ? -v : v; // G = Güney (south) for Turkish users
+  }
+
+  function splitPair(str) {
+    const s = str.trim();
+    let parts = s.split(/\s*[;,]\s*(?=[-+\d])/);           // "41.0, 29.0" (keeps decimal commas like 41,0)
+    if (parts.length !== 2) parts = s.split(/\s+(?=[-+]?\d)/); // "41°00'29"N 28°58'42"E"
+    return parts.length === 2 ? parts : null;
+  }
+
+  $('coordLat').addEventListener('paste', e => {
+    const txt = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+    const pair = splitPair(txt);
+    if (pair) { e.preventDefault(); $('coordLat').value = pair[0]; $('coordLon').value = pair[1]; }
+  });
+
+  function applyCoords() {
+    let latS = $('coordLat').value, lonS = $('coordLon').value;
+    if (!lonS.trim()) { const pair = splitPair(latS); if (pair) [latS, lonS] = pair; }
+    const lat = parseAngle(latS), lon = parseAngle(lonS);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 85 || Math.abs(lon) > 180) {
+      ctx.toast(t('coordBad'), 3500);
+      return;
+    }
+    const hdgRaw = $('coordHdg').value.trim();
+    const altRaw = $('coordAlt').value.trim();
+    const heading = hdgRaw === '' ? 0 : ((Number(hdgRaw) % 360) + 360) % 360;
+    const userAlt = altRaw === '' ? null : clampNum(Number(altRaw), 0, 15000);
+    prefs.pick.coords = {
+      kind: 'coords', name: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+      lat: +lat.toFixed(6), lon: +lon.toFixed(6), heading: Number.isFinite(heading) ? heading : 0,
+      alt: userAlt ?? 450, userAlt, back: 0,
+    };
+    $('coordLat').value = prefs.pick.coords.lat;
+    $('coordLon').value = prefs.pick.coords.lon;
+    placeChanged();
+    ctx.toast(t('coordSet'), 1500);
+  }
+  const clampNum = (v, a, b) => (Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : null);
+  $('coordGo').addEventListener('click', applyCoords);
+  ['coordLat', 'coordLon', 'coordHdg', 'coordAlt'].forEach(id => $(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); applyCoords(); }
+  }));
 
   // ---------------------------------------------------------------- aircraft
   const baseById = id => AIRCRAFT.find(a => a.id === id) || AIRCRAFT[0];

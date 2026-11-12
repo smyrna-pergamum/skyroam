@@ -46,6 +46,7 @@ export const AIRCRAFT = [
     typeTr: 'Eğitim uçağı', typeEn: 'Light trainer',
     colors: { p: '#eef2f7', s: '#2563eb', a: '#dc2626' },
     span: 12.5, cam: { dist: 26, cockpit: [1.9, 1.25] },
+    cockpit: { style: 'ga', engines: 1, panel: '#2b2f36' },
     phys: { thrust: 7.5, drag: 0.0007, vStall: 30, vRotate: 36, roll: 1.4, pitch: 0.6, gearH: 1.65, maxLand: 85, maxSink: -5, startSpeed: 60, engine: 'prop' },
     build: () => [
       B(8, 1.3, 1.3, 0, 0, 0, 'p'),
@@ -65,6 +66,7 @@ export const AIRCRAFT = [
     typeTr: 'Akrobasi çift kanatlı', typeEn: 'Aerobatic biplane',
     colors: { p: '#facc15', s: '#dc2626', a: '#111827' },
     span: 8, cam: { dist: 22, cockpit: [-0.2, 1.0] },
+    cockpit: { style: 'ga', engines: 1, panel: '#3b2f2f' },
     phys: { thrust: 10, drag: 0.0008, vStall: 30, vRotate: 34, roll: 2.6, pitch: 0.9, gearH: 1.6, maxLand: 80, maxSink: -5, startSpeed: 60, engine: 'prop' },
     build: () => [
       B(6, 1.0, 1.1, 0, 0, 0, 'p'),
@@ -85,6 +87,7 @@ export const AIRCRAFT = [
     typeTr: 'Planör (motorsuz)', typeEn: 'Sailplane (no engine)',
     colors: { p: '#f8fafc', s: '#e2e8f0', a: '#ef4444' },
     span: 18, cam: { dist: 24, cockpit: [2.0, 0.75] },
+    cockpit: { style: 'glider', engines: 0, panel: '#2b2f36' },
     phys: { thrust: 0, drag: 0.00032, vStall: 22, vRotate: 26, roll: 1.0, pitch: 0.5, gearH: 0.85, maxLand: 60, maxSink: -4, startSpeed: 34, engine: 'none' },
     startBonusAlt: 700,
     build: () => [
@@ -103,6 +106,7 @@ export const AIRCRAFT = [
     typeTr: 'İş jeti', typeEn: 'Business jet',
     colors: { p: '#f8fafc', s: '#0f766e', a: '#d4af37' },
     span: 16, cam: { dist: 34, cockpit: [7.4, 0.7] },
+    cockpit: { style: 'glass', engines: 2, panel: '#30353d' },
     phys: { thrust: 9, drag: 0.00035, vStall: 48, vRotate: 56, roll: 1.2, pitch: 0.45, gearH: 1.85, maxLand: 110, maxSink: -4.5, startSpeed: 110, engine: 'jet' },
     build: () => [
       C(15, 0.95, 0.95, 0, 0, 0, 'p'),
@@ -123,6 +127,7 @@ export const AIRCRAFT = [
     typeTr: 'Turboprop yolcu uçağı', typeEn: 'Turboprop airliner',
     colors: { p: '#f8fafc', s: '#e11d48', a: '#1e3a8a' },
     span: 27, cam: { dist: 52, cockpit: [10.4, 0.6] },
+    cockpit: { style: 'glass', engines: 2, panel: '#30353d' },
     phys: { thrust: 7, drag: 0.0004, vStall: 44, vRotate: 52, roll: 0.9, pitch: 0.4, gearH: 2.45, maxLand: 100, maxSink: -4.5, startSpeed: 95, engine: 'prop' },
     build: () => [
       C(20, 1.3, 1.3, 0, 0, 0, 'p'),
@@ -143,6 +148,7 @@ export const AIRCRAFT = [
     typeTr: 'Dar gövde jet yolcu uçağı', typeEn: 'Narrow-body jetliner',
     colors: { p: '#f8fafc', s: '#dc2626', a: '#dc2626' },
     span: 34, cam: { dist: 72, cockpit: [16.4, 0.9] },
+    cockpit: { style: 'glass', engines: 2, panel: '#30353d' },
     phys: { thrust: 7.5, drag: 0.00022, vStall: 58, vRotate: 68, roll: 0.7, pitch: 0.32, gearH: 3.25, maxLand: 120, maxSink: -4, startSpeed: 130, engine: 'jet' },
     build: () => [
       C(30, 1.95, 1.95, 0, 0, 0, 'p'),
@@ -164,6 +170,7 @@ export const AIRCRAFT = [
     typeTr: 'Geniş gövde, dört motorlu', typeEn: 'Wide-body, four engines',
     colors: { p: '#f8fafc', s: '#1d4ed8', a: '#f59e0b' },
     span: 60, cam: { dist: 115, cockpit: [29.5, 1.5] },
+    cockpit: { style: 'glass', engines: 4, panel: '#30353d' },
     phys: { thrust: 7, drag: 0.00018, vStall: 64, vRotate: 76, roll: 0.55, pitch: 0.27, gearH: 5.0, maxLand: 125, maxSink: -4, startSpeed: 140, engine: 'jet' },
     build: () => [
       C(55, 3, 3, 0, 0, 0, 'p'),
@@ -185,6 +192,7 @@ export const AIRCRAFT = [
     typeTr: 'Askeri kargo, dört pervaneli', typeEn: 'Military cargo, four props',
     colors: { p: '#6b7280', s: '#4b5563', a: '#111827' },
     span: 40, cam: { dist: 78, cockpit: [15.2, 1.2] },
+    cockpit: { style: 'glass', engines: 4, panel: '#3a3f35' },
     phys: { thrust: 6.5, drag: 0.0004, vStall: 40, vRotate: 48, roll: 0.7, pitch: 0.35, gearH: 3.3, maxLand: 100, maxSink: -5, startSpeed: 95, engine: 'prop' },
     build: () => [
       C(28, 2.4, 2.4, 0, 0, 0, 'p'),
@@ -205,6 +213,7 @@ export const AIRCRAFT = [
     typeTr: 'Pervaneli savaş uçağı (klasik)', typeEn: 'Classic prop fighter',
     colors: { p: '#9ca3af', s: '#374151', a: '#dc2626' },
     span: 11.5, cam: { dist: 24, cockpit: [0.8, 1.2] },
+    cockpit: { style: 'ga', engines: 1, panel: '#353b2e' },
     phys: { thrust: 11, drag: 0.00065, vStall: 38, vRotate: 44, roll: 2.0, pitch: 0.8, gearH: 2.05, maxLand: 90, maxSink: -5, startSpeed: 90, engine: 'prop' },
     build: () => [
       B(8.5, 1.2, 1.4, 0, 0, 0, 'p'),
@@ -226,6 +235,7 @@ export const AIRCRAFT = [
     typeTr: 'Jet savaş uçağı', typeEn: 'Jet fighter',
     colors: { p: '#94a3b8', s: '#64748b', a: '#1e293b' },
     span: 10, cam: { dist: 28, cockpit: [4.3, 1.05] },
+    cockpit: { style: 'fighter', engines: 1, panel: '#23272d' },
     phys: { thrust: 22, drag: 0.00035, vStall: 52, vRotate: 62, roll: 3.2, pitch: 1.0, gearH: 1.8, maxLand: 120, maxSink: -5, startSpeed: 150, engine: 'jet' },
     build: () => [
       B(13, 1.4, 1.3, 0, 0, 0, 'p'),
@@ -245,6 +255,7 @@ export const AIRCRAFT = [
     typeTr: 'Uçan kanat bombardıman', typeEn: 'Flying-wing bomber',
     colors: { p: '#374151', s: '#1f2937', a: '#111827' },
     span: 52, cam: { dist: 90, cockpit: [5.5, 1.4] },
+    cockpit: { style: 'glass', engines: 4, panel: '#23272d' },
     phys: { thrust: 9, drag: 0.0002, vStall: 58, vRotate: 68, roll: 0.8, pitch: 0.35, gearH: 2.9, maxLand: 120, maxSink: -4.5, startSpeed: 140, engine: 'jet' },
     build: () => [
       B(14, 8, 2, 0, 0, 0, 'p'),
@@ -284,7 +295,7 @@ export function resolveAircraft(base, mods = DEFAULT_MODS, colors = base.colors)
 
   return {
     baseId: base.id, base, mods: m, colors: { ...base.colors, ...colors },
-    phys: ph, parts, cam: base.cam, span: base.span * m.wing,
+    phys: ph, parts, cam: base.cam, cockpit: base.cockpit, span: base.span * m.wing,
     startBonusAlt: base.startBonusAlt || 0,
   };
 }

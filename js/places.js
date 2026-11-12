@@ -133,6 +133,8 @@ export const CONTINENTS = [
 export const HISTORIC = [
   ['Ayasofya, İstanbul', 'Hagia Sophia, Istanbul', 41.0086, 28.9802, 20],
   ['Efes Antik Kenti', 'Ephesus', 37.9411, 27.3419, 120],
+  ['Bergama Akropolü (Pergamon)', 'Pergamon Acropolis, Bergama', 39.1325, 27.1840, 20, 700],
+  ['Bergama Asklepion', 'Asclepieion of Pergamon', 39.1243, 27.1658, 60],
   ['Göbekli Tepe', 'Göbekli Tepe', 37.2232, 38.9224, 0],
   ['Truva (Troya)', 'Troy', 39.9573, 26.2389, 90],
   ['Nemrut Dağı', 'Mount Nemrut', 37.9809, 38.7406, 30, 2600],

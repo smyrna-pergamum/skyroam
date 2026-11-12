@@ -18,12 +18,19 @@
 - **Hangar**: modify any aircraft (engine power, wingspan, agility, three colours), name it and save it. Changes show live on the plane and in its stats.
 - **Take off anywhere**:
   - Continent → country → city lists (all 81 provinces of Türkiye plus resort towns, 190+ cities in 86 other countries)
-  - 44 world-famous historic sites and landmarks (Giza, Petra, Machu Picchu, Ephesus, Göbekli Tepe, Hagia Sophia, Colosseum…)
+  - 46 world-famous historic sites and landmarks (Giza, Petra, Machu Picchu, Ephesus, Pergamon, Göbekli Tepe, Hagia Sophia, Colosseum…)
   - 22 natural wonders (Cappadocia, Everest, Matterhorn, Grand Canyon, Fjords…)
   - **Search** for any city, town or village, or take off from your own location
+  - **Coordinates**: type or paste latitude/longitude (decimal or 41°00′29″N), with optional heading and altitude
 - **Free flight** and a timed **ring course** (best times saved per place and aircraft)
 - Arcade flight model: stalls, coordinated turns, landing and crashing, fixed 120 Hz physics
-- Chase and cockpit cameras, HUD with an artificial horizon
+- **Cockpit interior** with live instruments, different per aircraft class:
+  - analog six-pack, engine gauges, radios and a moving yoke (props)
+  - glass cockpit with PFD, ND, engine display and autopilot panel (jets, airliners)
+  - green HUD, MFDs and a moving stick (jet fighter)
+  - minimal panel with variometer and a yaw string (glider)
+- Three cameras: chase, cockpit interior, nose
+- **On-screen throttle lever**: drag it with mouse or finger, or use the mouse wheel over it
 - Keyboard and gamepad, synthesised engine sound (prop / jet / glider)
 - Turkish and English UI
 
@@ -61,9 +68,9 @@ The token is stored only in the player's browser (`localStorage`, or `sessionSto
 | Nose down / up | `W` `S` / `↑` `↓` | Left stick Y |
 | Bank left / right | `A` `D` / `←` `→` | Left stick X |
 | Rudder | `Q` `E` | LB / RB |
-| Throttle | `R` `F` / `+` `−` | RT / LT |
+| Throttle | `R` `F` / `+` `−` / drag the on-screen lever | RT / LT |
 | Air brake / wheel brake | `Space` | B |
-| Camera (chase / cockpit) | `C` | A |
+| Camera (chase / cockpit / nose) | `C` | A |
 | Pause / menu | `P` / `Esc` | Start |
 | Sound | `M` | Y |
 | Restart after crash | `Enter` | A |
@@ -92,7 +99,8 @@ Then open <http://localhost:8000>.
 index.html        page: welcome screen, menu (flight / aircraft / settings), HUD
 style.css         UI and HUD styles
 js/main.js        viewer, map modes, game loop, camera, HUD
-js/menu.js        menu tabs, place picker + search, aircraft grid, hangar, welcome
+js/menu.js        menu tabs, place picker + search + coordinates, aircraft grid, hangar, welcome
+js/cockpit.js     cockpit interiors drawn on a canvas overlay (GA, glass, fighter, glider)
 js/aircraft.js    aircraft roster: flight parameters + part lists, mods
 js/places.js      continents / countries / cities, historic sites, natural wonders
 js/flight.js      fixed-step (120 Hz) arcade flight model

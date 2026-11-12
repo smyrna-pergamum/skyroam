@@ -8,6 +8,8 @@ import { RingCourse } from './rings.js';
 import { EngineSound } from './audio.js';
 import { readJSON, writeJSON, getToken } from './storage.js';
 import { initMenu } from './menu.js';
+import { Cockpit } from './cockpit.js';
+import { statsOf } from './aircraft.js';
 
 const $ = id => document.getElementById(id);
 const RING_COUNT = 12;
@@ -126,6 +128,7 @@ input.invert = prefs.invert;
 const plane = new PlaneModel(scene);
 const course = new RingCourse(viewer);
 const sound = new EngineSound();
+const cockpit = new Cockpit($('cockpit'));
 sound.muted = prefs.muted;
 
 let ac = null;                 // resolved aircraft in use
@@ -133,7 +136,8 @@ let state = null;
 let prevSnap = {}, curSnap = {}, drawSnap = {};
 let accumulator = 0;
 let phase = 'menu';            // 'menu' | 'flying' | 'paused' | 'crashed' | 'finished'
-let camMode = 'chase';
+let camMode = 'chase';          // 'chase' | 'cockpit' (interior) | 'nose'
+const CAM_MODES = ['chase', 'cockpit', 'nose'];
 let camPos = null;
 let gameMode = 'free';
 let place = null;
@@ -158,6 +162,8 @@ function setAircraft(resolved) {
   plane.build(ac);
   plane.visible = phase !== 'menu' ? camMode === 'chase' : true;
   course.radius = Math.max(45, ac.span * 1.6);
+  cockpit.configure(ac, statsOf(ac.phys).topKmh);
+  $('throttleLever').classList.toggle('disabled', ac.phys.engine === 'none');
 }
 
 const menu = initMenu({
@@ -213,6 +219,7 @@ function setPhase(p) {
   $('result').hidden = !(p === 'crashed' || p === 'finished');
   $('hud').hidden = p === 'menu';
   plane.visible = p === 'menu' || camMode === 'chase';
+  applyCamView();
   if (p === 'menu') { course.clear(); setPreviewPlace(menu.getPlace()); }
   lastFrame = performance.now();
 }
@@ -258,7 +265,7 @@ function updateCamera(M, dt) {
   const cam = viewer.camera;
   resetCameraFrame(cam);
   const d = ac.cam.dist;
-  if (camMode === 'cockpit') {
+  if (camMode !== 'chase') {
     const [cx, cz] = ac.cam.cockpit;
     const eye = Cesium.Matrix4.multiplyByPoint(M, C3.fromElements(cx, 0, cz, tmp.off), tmp.a);
     const ahead = Cesium.Matrix4.multiplyByPoint(M, AHEAD, tmp.b);
@@ -347,6 +354,48 @@ function toast(msg, ms = 2500) {
 }
 
 // ---------------------------------------------------------------------------
+// Camera view + on-screen throttle lever
+// ---------------------------------------------------------------------------
+function applyCamView() {
+  const inCockpit = camMode === 'cockpit' && phase !== 'menu';
+  cockpit.visible = inCockpit;
+  document.body.classList.toggle('cockpit-on', inCockpit);
+}
+
+const lever = { track: $('tlTrack'), knob: $('tlKnob'), fill: $('tlFill'), txt: $('tlTxt'), dragging: false };
+function leverSet(clientY) {
+  if (!state || ac.phys.engine === 'none') return;
+  const r = lever.track.getBoundingClientRect();
+  const pad = 10;
+  const f = 1 - (clientY - r.top - pad) / (r.height - pad * 2);
+  state.throttle = Math.min(1, Math.max(0, f));
+}
+lever.track.addEventListener('pointerdown', e => {
+  lever.dragging = true;
+  lever.track.setPointerCapture(e.pointerId);
+  leverSet(e.clientY);
+  e.preventDefault();
+});
+lever.track.addEventListener('pointermove', e => { if (lever.dragging) leverSet(e.clientY); });
+const leverUp = () => { lever.dragging = false; };
+lever.track.addEventListener('pointerup', leverUp);
+lever.track.addEventListener('pointercancel', leverUp);
+lever.track.addEventListener('wheel', e => {
+  if (!state) return;
+  state.throttle = Math.min(1, Math.max(0, state.throttle - Math.sign(e.deltaY) * 0.05));
+  e.preventDefault();
+}, { passive: false });
+
+function updateLever() {
+  const thr = ac.phys.engine === 'none' ? 0 : state.throttle;
+  const pct = Math.round(thr * 100);
+  lever.knob.style.bottom = `calc(10px + ${thr} * (100% - 20px))`;
+  lever.fill.style.height = `calc(${thr} * (100% - 6px))`;
+  lever.txt.textContent = ac.phys.engine === 'none' ? '—' : `${pct}%`;
+  lever.track.setAttribute('aria-valuenow', String(pct));
+}
+
+// ---------------------------------------------------------------------------
 // Main loop: fixed-step physics, interpolated rendering
 // ---------------------------------------------------------------------------
 const planePos = new C3();
@@ -379,10 +428,11 @@ scene.preUpdate.addEventListener(() => {
 
   if (input.consume('pause')) { setPhase('paused'); return; }
   if (input.consume('camera')) {
-    camMode = camMode === 'chase' ? 'cockpit' : 'chase';
+    camMode = CAM_MODES[(CAM_MODES.indexOf(camMode) + 1) % CAM_MODES.length];
     plane.visible = camMode === 'chase';
     camPos = null;
-    toast(t(camMode === 'chase' ? 'camChase' : 'camCockpit'), 1200);
+    applyCamView();
+    toast(t({ chase: 'camChase', cockpit: 'camCockpit', nose: 'camNose' }[camMode]), 1200);
   }
 
   accumulator += dt;
@@ -412,6 +462,11 @@ scene.preUpdate.addEventListener(() => {
 
   if (gameMode === 'rings' && phase === 'flying') courseTime = performance.now() - courseStart;
   updateHud(state, drawSnap);
+  updateLever();
+  if (camMode === 'cockpit') {
+    const view = Object.assign({}, state, drawSnap);
+    cockpit.draw(view, input.axes, dt, gameMode === 'rings' && course.active ? course.navInfo(state) : null);
+  }
   sound.update(state.throttle, state.speed, phase === 'flying', ac.phys.engine);
 
   if (state.crashed && phase === 'flying') onCrash();

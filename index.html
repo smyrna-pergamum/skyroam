@@ -12,6 +12,7 @@
 </head>
 <body>
   <div id="cesium"></div>
+  <canvas id="cockpit" hidden></canvas>
 
   <!-- In-flight HUD -->
   <div id="hud" hidden>
@@ -44,6 +45,15 @@
         <div id="rArrow" class="arrow">➤</div>
         <div><b id="rDist">0</b> m<br><span id="rDy"></span></div>
       </div>
+    </div>
+
+    <div class="throttle-lever glass" id="throttleLever">
+      <span class="lbl" data-i18n="hudThrottle"></span>
+      <div class="tl-track" id="tlTrack" role="slider" tabindex="-1" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="tl-fill" id="tlFill"></div>
+        <div class="tl-knob" id="tlKnob"></div>
+      </div>
+      <b id="tlTxt">0%</b>
     </div>
 
     <div id="warn" class="warn" hidden></div>
@@ -102,6 +112,7 @@
           <label><input type="radio" name="placeCat" value="historic"><span data-i18n="catHistoric"></span></label>
           <label><input type="radio" name="placeCat" value="nature"><span data-i18n="catNature"></span></label>
           <label><input type="radio" name="placeCat" value="search"><span data-i18n="catSearch"></span></label>
+          <label><input type="radio" name="placeCat" value="coords"><span data-i18n="catCoords"></span></label>
         </div>
 
         <div class="picker" data-pick="city">
@@ -123,6 +134,16 @@
           <button id="geoBtn" class="ghost small" type="button" data-i18n="geoBtn"></button>
           <div id="searchResults" class="results"></div>
           <p class="hint" data-i18n="searchNote"></p>
+        </div>
+        <div class="picker" data-pick="coords" hidden>
+          <div class="coord-grid">
+            <div class="field"><label for="coordLat" data-i18n="coordLat"></label><input id="coordLat" type="text" inputmode="text" autocomplete="off" placeholder="41.0082"></div>
+            <div class="field"><label for="coordLon" data-i18n="coordLon"></label><input id="coordLon" type="text" inputmode="text" autocomplete="off" placeholder="28.9784"></div>
+            <div class="field"><label for="coordHdg" data-i18n="coordHdg"></label><input id="coordHdg" type="number" min="0" max="359" step="1" placeholder="0"></div>
+            <div class="field"><label for="coordAlt" data-i18n="coordAlt"></label><input id="coordAlt" type="number" min="0" max="15000" step="10" placeholder="450"></div>
+          </div>
+          <button id="coordGo" class="secondary" type="button" data-i18n="coordGo"></button>
+          <p class="hint" data-i18n="coordHint"></p>
         </div>
 
         <div class="field">
