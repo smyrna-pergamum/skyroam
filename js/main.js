@@ -1,5 +1,5 @@
 /* global Cesium */
-import { t, setLang } from './i18n.js';
+import { t, setLang, getLang } from './i18n.js';
 import { startFromPlace } from './places.js';
 import { FIXED_DT, createFlight, stepFlight, snapshot, lerpSnap } from './flight.js';
 import { Input } from './input.js';
@@ -10,6 +10,9 @@ import { readJSON, writeJSON, getToken } from './storage.js';
 import { initMenu } from './menu.js';
 import { Cockpit } from './cockpit.js';
 import { statsOf } from './aircraft.js';
+import { Feel } from './feel.js';
+import { MiniMap } from './minimap.js';
+import { TouchControls } from './touch.js';
 
 const $ = id => document.getElementById(id);
 const RING_COUNT = 12;
@@ -17,7 +20,7 @@ const PREFS_KEY = 'skyroam.prefs';
 const BEST_KEY = 'skyroam.best';
 
 const prefs = Object.assign(
-  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:serce', acCat: 'all', tab: 'fly' },
+  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true },
   readJSON(PREFS_KEY, {}),
 );
 const savePrefs = () => writeJSON(PREFS_KEY, prefs);
@@ -129,6 +132,13 @@ const plane = new PlaneModel(scene);
 const course = new RingCourse(viewer);
 const sound = new EngineSound();
 const cockpit = new Cockpit($('cockpit'));
+const feel = new Feel($('feel'));
+const touch = new TouchControls(input, $('hud'));
+const minimap = new MiniMap($('mmCanvas'), { place: $('mmPlace'), coords: $('mmCoords'), heading: $('mmHeading') }, () => getLang());
+document.body.classList.toggle('minimap-off', !prefs.minimap);
+let topSpeed = 60;
+// Landing gear: retracts automatically after take-off, extends near the ground. G overrides for a while.
+const gearCtl = { target: 1, manualUntil: 0, announced: 1 };
 sound.muted = prefs.muted;
 
 let ac = null;                 // resolved aircraft in use
@@ -162,7 +172,9 @@ function setAircraft(resolved) {
   plane.build(ac);
   plane.visible = phase !== 'menu' ? camMode === 'chase' : true;
   course.radius = Math.max(45, ac.span * 1.6);
+  topSpeed = statsOf(ac.phys).topKmh / 3.6;
   cockpit.configure(ac, statsOf(ac.phys).topKmh);
+  sound.small = (ac.base.spec?.span || 12) < 12 && ac.phys.engine === 'prop';
   $('throttleLever').classList.toggle('disabled', ac.phys.engine === 'none');
 }
 
@@ -198,6 +210,10 @@ async function startFlight() {
   snapshot(state, prevSnap); snapshot(state, curSnap);
   accumulator = 0;
   camPos = null; // hard cut, no camera slingshot after respawn
+  feel.reset();
+  minimap.forget();
+  plane.gear = gearCtl.target = gearCtl.announced = state.onGround ? 1 : 0;
+  gearCtl.manualUntil = 0;
   input.clearEdges();
 
   course.clear();
@@ -230,10 +246,11 @@ function fmtTime(ms) {
   return `${m}:${(s - m * 60).toFixed(1).padStart(4, '0')}`;
 }
 
-function onCrash() {
+function onCrash(reason = 'crashGround') {
   sound.crash();
+  feel.addTrauma(1);
   $('resTitle').textContent = t('crashTitle');
-  $('resText').textContent = `${t('crashGround')} ${t('crashTip')}`;
+  $('resText').textContent = `${t(reason)} ${t('crashTip')}`;
   setPhase('crashed');
 }
 
@@ -261,8 +278,9 @@ function resetCameraFrame(cam) {
   if (!Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) cam.lookAtTransform(Cesium.Matrix4.IDENTITY);
 }
 
-function updateCamera(M, dt) {
+function updateCamera(M, dt, fx) {
   const cam = viewer.camera;
+  cam.frustum.fov = Cesium.Math.toRadians(fx.fov);
   resetCameraFrame(cam);
   const d = ac.cam.dist;
   if (camMode !== 'chase') {
@@ -272,9 +290,11 @@ function updateCamera(M, dt) {
     C3.normalize(C3.subtract(ahead, eye, tmp.dir), tmp.dir);
     C3.normalize(Cesium.Matrix4.multiplyByPointAsVector(M, BODY_UP, tmp.up), tmp.up);
     cam.setView({ destination: eye, orientation: { direction: tmp.dir, up: tmp.up } });
+    applyShake(cam, fx);
     return;
   }
-  const desired = Cesium.Matrix4.multiplyByPoint(M, C3.fromElements(-d, 0, d * 0.25, tmp.off), tmp.a);
+  const dd = d * fx.distScale;
+  const desired = Cesium.Matrix4.multiplyByPoint(M, C3.fromElements(-dd, 0, dd * 0.25, tmp.off), tmp.a);
   if (!camPos || dt <= 0) camPos = C3.clone(desired, camPos || new C3());
   else C3.lerp(camPos, desired, 1 - Math.exp(-7 * dt), camPos); // frame-rate independent smoothing
   const look = Cesium.Matrix4.multiplyByPoint(M, C3.fromElements(d, 0, d * 0.06, tmp.off), tmp.b);
@@ -285,6 +305,13 @@ function updateCamera(M, dt) {
   C3.normalize(C3.cross(tmp.dir, tmp.up, tmp.right), tmp.right);
   C3.normalize(C3.cross(tmp.right, tmp.dir, tmp.up), tmp.up);
   cam.setView({ destination: camPos, orientation: { direction: tmp.dir, up: tmp.up } });
+  applyShake(cam, fx);
+}
+
+function applyShake(cam, fx) {
+  if (fx.yaw) cam.lookRight(fx.yaw);
+  if (fx.pitch) cam.lookUp(fx.pitch);
+  if (fx.roll) cam.twistRight(fx.roll);
 }
 
 function menuPreview(dt) {
@@ -297,6 +324,7 @@ function menuPreview(dt) {
   preview.angle += dt * 0.12;
   const cam = viewer.camera;
   const center = C3.fromRadians(s.lon, s.lat, s.h, Cesium.Ellipsoid.WGS84, tmp.a);
+  cam.frustum.fov = Cesium.Math.toRadians(60);
   cam.lookAt(center, new Cesium.HeadingPitchRange(s.heading + preview.angle, -0.22, ac.cam.dist * 2.4));
 }
 
@@ -386,6 +414,30 @@ lever.track.addEventListener('wheel', e => {
   e.preventDefault();
 }, { passive: false });
 
+// Crash / finish screen buttons (mouse and touch)
+$('resRetryBtn').addEventListener('click', () => { if (phase === 'crashed' || phase === 'finished') startFlight(); });
+$('resMenuBtn').addEventListener('click', () => { if (phase === 'crashed' || phase === 'finished') setPhase('menu'); });
+
+function updateGear(dt) {
+  const now = performance.now();
+  if (input.consume('gear')) {
+    gearCtl.target = gearCtl.target > 0.5 ? 0 : 1;
+    gearCtl.manualUntil = now + 20000;
+  } else if (now > gearCtl.manualUntil) {
+    const agl = Number.isFinite(state.agl) ? state.agl : state.h;
+    if (state.onGround) gearCtl.target = 1;
+    else if (gearCtl.target === 1 && agl > 250 && state.vs > -2) gearCtl.target = 0;
+    else if (gearCtl.target === 0 && (agl < 180 || (agl < 450 && state.vs < -4))) gearCtl.target = 1;
+  }
+  const rate = dt / 3; // about three seconds for a full cycle
+  plane.gear += Math.max(-rate, Math.min(rate, gearCtl.target - plane.gear));
+  if (gearCtl.target !== gearCtl.announced) {
+    gearCtl.announced = gearCtl.target;
+    toast(t(gearCtl.target ? 'gearDown' : 'gearUp'), 1400);
+    sound.gear?.(gearCtl.target);
+  }
+}
+
 function updateLever() {
   const thr = ac.phys.engine === 'none' ? 0 : state.throttle;
   const pct = Math.round(thr * 100);
@@ -406,15 +458,21 @@ scene.preUpdate.addEventListener(() => {
   lastFrame = now;
   input.poll(dt);
 
+  if (input.consume('minimap')) {
+    prefs.minimap = !prefs.minimap; savePrefs();
+    document.body.classList.toggle('minimap-off', !prefs.minimap);
+    toast(t(prefs.minimap ? 'minimapOn' : 'minimapOff'), 1200);
+  }
   if (input.consume('mute')) {
     prefs.muted = !prefs.muted; savePrefs();
     sound.setMuted(prefs.muted);
     toast(t(prefs.muted ? 'soundOff' : 'soundOn'), 1200);
   }
 
-  if (phase === 'menu') { menuPreview(dt); sound.update(0, 0, false, 'prop'); return; }
+  if (phase === 'menu') { feel.draw(dt, 0, 0, false); menuPreview(dt); sound.update(0, 0, false, 'prop'); return; }
 
   if (phase === 'crashed' || phase === 'finished') {
+    feel.draw(dt, 0, 0, false);
     if (input.consume('restart')) startFlight();
     if (input.consume('pause')) setPhase('menu');
     sound.update(0, 0, false, ac.phys.engine);
@@ -444,6 +502,8 @@ scene.preUpdate.addEventListener(() => {
     accumulator -= FIXED_DT;
     steps++;
 
+    if (state.landedEvent && plane.gear < 0.6) { state.crashed = true; state.crashReason = 'crashGear'; break; }
+    if (state.landedEvent) feel.addTrauma(Math.min(0.6, 0.15 + Math.abs(state.landedEvent.sink) * 0.08));
     if (state.landedEvent) toast(state.landedEvent.sink > -1.5 ? t('landedSoft') : t('landed'));
     if (state.crashed) break;
 
@@ -457,8 +517,15 @@ scene.preUpdate.addEventListener(() => {
   if (steps === 24) accumulator = 0;
 
   lerpSnap(prevSnap, curSnap, Math.min(1, accumulator / FIXED_DT), drawSnap);
+  updateGear(dt);
   const M = plane.update(drawSnap);
-  updateCamera(M, dt);
+  const fxOn = !prefs.calm;
+  const fx = feel.update(dt, state, topSpeed, fxOn, camMode);
+  updateCamera(M, dt, fx);
+  feel.draw(dt, fx.sp01 || 0, feel.acc, fxOn && phase === 'flying');
+  if (prefs.minimap && (hudTick % 3) === 0) {
+    minimap.update(drawSnap.lat * 180 / Math.PI, drawSnap.lon * 180 / Math.PI, state.heading * 180 / Math.PI, state.agl, state.speed);
+  }
 
   if (gameMode === 'rings' && phase === 'flying') courseTime = performance.now() - courseStart;
   updateHud(state, drawSnap);
@@ -469,7 +536,7 @@ scene.preUpdate.addEventListener(() => {
   }
   sound.update(state.throttle, state.speed, phase === 'flying', ac.phys.engine);
 
-  if (state.crashed && phase === 'flying') onCrash();
+  if (state.crashed && phase === 'flying') onCrash(state.crashReason);
 });
 
 if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches) $('touchNote').hidden = false;

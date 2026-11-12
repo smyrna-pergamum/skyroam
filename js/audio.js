@@ -1,4 +1,13 @@
-// Synthesised engine + wind sound with WebAudio. No audio files needed.
+// Engine, wind and event sounds with WebAudio.
+// Recorded loops from Pixabay (sounds/, Pixabay Content License) are layered on top of a small
+// synthesiser; if the files can't load, the synthesiser alone still works.
+
+const SAMPLES = {
+  prop: 'sounds/prop.mp3', jet: 'sounds/jet.mp3', turbine: 'sounds/turbine.mp3',
+  wind: 'sounds/wind.mp3', crash: 'sounds/crash.mp3', gear: 'sounds/gear.mp3',
+};
+// Seamless loop windows (seconds) inside each recording, skipping fade-ins/outs.
+const LOOP = { prop: [0.5, 22.3], jet: [1, 9.5], turbine: [0.2, 2.8], wind: [0.3, 4.7] };
 
 export class EngineSound {
   constructor() {
@@ -51,7 +60,57 @@ export class EngineSound {
     this.windGain.gain.value = 0;
     this.noise.connect(this.windFilter).connect(this.windGain).connect(this.master);
     this.noise.start();
+    this.samples = {};
+    this.loops = {};
+    this.loadSamples();
   }
+
+  async loadSamples() {
+    const ctx = this.ctx;
+    await Promise.all(Object.entries(SAMPLES).map(async ([k, url]) => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) return;
+        this.samples[k] = await ctx.decodeAudioData(await r.arrayBuffer());
+      } catch { /* synth fallback */ }
+    }));
+    for (const k of Object.keys(LOOP)) {
+      const buf = this.samples[k];
+      if (!buf) continue;
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.loop = true;
+      const [a, b] = LOOP[k];
+      src.loopStart = Math.min(a, buf.duration * 0.3); src.loopEnd = Math.min(b, buf.duration);
+      const g = ctx.createGain(); g.gain.value = 0;
+      src.connect(g).connect(this.master);
+      src.start(0, src.loopStart);
+      this.loops[k] = { src, g };
+    }
+    this.hasSamples = Object.keys(this.loops).length > 0;
+  }
+
+  _loop(k, gain, rate, t, tc = 0.25) {
+    const L = this.loops[k];
+    if (!L) return;
+    L.g.gain.setTargetAtTime(gain, t, tc);
+    L.src.playbackRate.setTargetAtTime(rate, t, tc);
+  }
+
+  _oneShot(k, gain = 1, offset = 0, dur) {
+    const buf = this.samples?.[k];
+    if (!this.ctx || this.muted || !buf) return false;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = buf;
+    g.gain.value = gain;
+    if (dur) { g.gain.setValueAtTime(gain, t + dur - 0.4); g.gain.linearRampToValueAtTime(0, t + dur); }
+    src.connect(g).connect(this.master);
+    src.start(t, offset, dur);
+    return true;
+  }
+
+  /** Landing gear moving (down = true). */
+  gear() { this._oneShot('gear', 0.7, 5.3, 3.6); }
 
   /** engine: 'prop' | 'jet' | 'none' */
   update(throttle, speed, active, engine = 'prop') {
@@ -65,10 +124,19 @@ export class EngineSound {
     this.osc1.frequency.setTargetAtTime(f, t, jet ? 0.6 : 0.15);
     this.osc2.frequency.setTargetAtTime(f * (jet ? 1.5 : 0.5), t, jet ? 0.6 : 0.15);
     this.filter.frequency.setTargetAtTime((jet ? 900 : 350) + throttle * 1400, t, 0.2);
-    this.engGain.gain.setTargetAtTime(on * eng * (jet ? 0.012 + throttle * 0.025 : 0.035 + throttle * 0.06), t, 0.2);
+    const synth = this.hasSamples ? 0.35 : 1; // the recordings carry most of the sound once loaded
+    this.engGain.gain.setTargetAtTime(synth * on * eng * (jet ? 0.012 + throttle * 0.025 : 0.035 + throttle * 0.06), t, 0.2);
     const w = Math.min(1, speed / 140);
     const roar = jet ? throttle * 0.1 : 0;
-    this.windGain.gain.setTargetAtTime(on * (w * w * 0.12 + roar), t, 0.3);
+    this.windGain.gain.setTargetAtTime(synth * on * (w * w * 0.12 + roar), t, 0.3);
+    if (this.hasSamples) {
+      const prop = on * (engine === 'prop' ? 1 : 0), jt = on * (jet ? 1 : 0);
+      const small = this.small ? 0.25 : 0; // small single-engine props run at a higher pitch
+      this._loop('prop', prop * (0.3 + throttle * 0.75), 0.7 + small + throttle * 0.55, t);
+      this._loop('jet', jt * (0.12 + throttle * 0.45), 0.8 + throttle * 0.35, t, 0.6);
+      this._loop('turbine', jt * (0.05 + throttle * 0.16), 0.75 + throttle * 0.5, t, 0.8);
+      this._loop('wind', on * Math.min(0.7, w * w * 0.55 + Math.min(1, speed / 300) * 0.15), 0.8 + w * 0.5, t, 0.4);
+    }
     this.windFilter.frequency.setTargetAtTime(400 + w * 900 + (jet ? 300 : 0), t, 0.3);
   }
 
@@ -91,6 +159,7 @@ export class EngineSound {
   /** Short noise burst for a crash. */
   crash() {
     if (!this.ctx || this.muted) return;
+    this._oneShot('crash', 0.9);
     const ctx = this.ctx, t = ctx.currentTime;
     const src = ctx.createBufferSource();
     src.buffer = this.noise.buffer;

@@ -2,7 +2,8 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>SkyRoam</title>
   <meta name="description" content="Browser flight game over the real world: fly over real terrain, cities and landmarks.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%2338bdf8' d='M60 30 36 26 26 6h-6l5 20-14-2-5-7H2l4 15-4 15h4l5-7 14-2-5 20h6l10-20 24-4c3 0 3-4 0-4z'/%3E%3C/svg%3E">
@@ -12,6 +13,7 @@
 </head>
 <body>
   <div id="cesium"></div>
+  <canvas id="feel"></canvas>
   <canvas id="cockpit" hidden></canvas>
 
   <!-- In-flight HUD -->
@@ -54,6 +56,16 @@
         <div class="tl-knob" id="tlKnob"></div>
       </div>
       <b id="tlTxt">0%</b>
+    </div>
+
+    <div id="minimap" class="minimap glass">
+      <canvas id="mmCanvas"></canvas>
+      <div class="mm-info">
+        <b id="mmHeading">000° N</b>
+        <span id="mmPlace">…</span>
+        <span id="mmCoords" class="mm-coords"></span>
+        <span class="mm-attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>
+      </div>
     </div>
 
     <div id="warn" class="warn" hidden></div>
@@ -158,6 +170,7 @@
         <div class="field row">
           <label class="check"><input type="checkbox" id="optInvert"><span data-i18n="optInvert"></span></label>
           <label class="check"><input type="checkbox" id="optAssist" checked><span data-i18n="optAssist"></span></label>
+          <label class="check"><input type="checkbox" id="optCalm"><span data-i18n="optCalm"></span></label>
         </div>
       </section>
 
@@ -168,8 +181,11 @@
           <label><input type="radio" name="acCat" value="civil"><span data-i18n="acCivil"></span></label>
           <label><input type="radio" name="acCat" value="commercial"><span data-i18n="acCommercial"></span></label>
           <label><input type="radio" name="acCat" value="military"><span data-i18n="acMilitary"></span></label>
+          <label><input type="radio" name="acCat" value="historic"><span data-i18n="acHistoric"></span></label>
           <label><input type="radio" name="acCat" value="mine"><span data-i18n="acMine"></span></label>
         </div>
+        <input type="search" id="acSearch" class="ac-search" data-i18n-ph="acSearchPh" autocomplete="off">
+        <p id="acCount" class="hint"></p>
         <div id="acGrid" class="ac-grid"></div>
         <div class="actions">
           <button id="hangarOpen" class="secondary" type="button" data-i18n="hangarOpen"></button>

@@ -15,9 +15,11 @@ const BINDINGS = {
   camera:       ['KeyC'],
   pause:        ['KeyP', 'Escape'],
   mute:         ['KeyM'],
+  minimap:      ['KeyN'],
+  gear:         ['KeyG'],
   restart:      ['Enter', 'NumpadEnter'],
 };
-const EDGE = new Set(['camera', 'pause', 'mute', 'restart']);
+const EDGE = new Set(['camera', 'pause', 'mute', 'restart', 'minimap', 'gear']);
 
 export const KEY_HELP = [
   ['kPitch', ['W', 'S', '↑', '↓']],
@@ -28,6 +30,8 @@ export const KEY_HELP = [
   ['kCamera', ['C']],
   ['kPause', ['P', 'Esc']],
   ['kMute', ['M']],
+  ['kGear', ['G']],
+  ['kMinimap', ['N']],
   ['kRestart', ['Enter']],
 ];
 
@@ -122,6 +126,13 @@ export class Input {
       this._padPrevRestart = pressed(0);
     }
 
+    const tc = this.touch;
+    if (tc && tc.active) {
+      if (Math.abs(tc.pitch) > Math.abs(pitch)) pitch = tc.pitch;
+      if (Math.abs(tc.roll) > Math.abs(roll)) roll = tc.roll;
+      yaw += tc.yaw;
+      brake = brake || tc.brake;
+    }
     if (this.invert) pitch = -pitch;
     const ax = this.axes;
     ax.pitch = Math.max(-1, Math.min(1, pitch));

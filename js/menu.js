@@ -1,7 +1,7 @@
 // Menu UI: tabs, place picker + search, aircraft grid, hangar, settings and the first-run welcome.
 import { t, setLang, getLang, applyI18n } from './i18n.js';
 import { CONTINENTS, HISTORIC, NATURE, siteToPlace, cityToPlace } from './places.js';
-import { AIRCRAFT, resolveAircraft, statsOf, DEFAULT_MODS } from './aircraft.js';
+import { AIRCRAFT, ALIASES, resolveAircraft, statsOf, DEFAULT_MODS, baseById } from './aircraft.js';
 import { KEY_HELP } from './input.js';
 import { readJSON, writeJSON, saveToken, looksLikeToken } from './storage.js';
 
@@ -21,6 +21,9 @@ export function initMenu(ctx) {
   const { prefs, savePrefs, token } = ctx;
   prefs.pick = Object.assign({ cat: 'city', cont: 0, country: 0, city: 39, hist: 0, nat: 0, search: null }, prefs.pick || {});
   let customs = readJSON(HANGAR_KEY, []);
+  // v4: the original fictional aircraft became real types; move saved choices across.
+  if (prefs.aircraft?.startsWith('b:') && ALIASES[prefs.aircraft.slice(2)]) prefs.aircraft = `b:${ALIASES[prefs.aircraft.slice(2)]}`;
+  customs.forEach(c => { if (ALIASES[c.base]) c.base = ALIASES[c.base]; });
   let searchResults = [];
   let editing = null; // hangar draft
 
@@ -198,14 +201,13 @@ export function initMenu(ctx) {
   }));
 
   // ---------------------------------------------------------------- aircraft
-  const baseById = id => AIRCRAFT.find(a => a.id === id) || AIRCRAFT[0];
 
   function resolveKey(key) {
     if (key && key.startsWith('c:')) {
       const c = customs.find(x => x.id === key.slice(2));
       if (c) return { ...resolveAircraft(baseById(c.base), c.mods, c.colors), custom: c };
     }
-    const id = key && key.startsWith('b:') ? key.slice(2) : 'serce';
+    const id = key && key.startsWith('b:') ? key.slice(2) : 'cessna-172';
     return resolveAircraft(baseById(id));
   }
   const getAircraft = () => resolveKey(prefs.aircraft);
@@ -247,6 +249,7 @@ export function initMenu(ctx) {
     const cat = prefs.acCat || 'all';
     $$('input[name=acCat]').forEach(r => { r.checked = r.value === cat; });
     if (cat === 'mine') {
+      $('acCount').textContent = '';
       if (!customs.length) grid.append(el('p', { className: 'empty', textContent: t('myEmpty') }));
       for (const c of customs) {
         const ac = resolveAircraft(baseById(c.base), c.mods, c.colors);
@@ -254,11 +257,23 @@ export function initMenu(ctx) {
       }
       return;
     }
+    const q = ($('acSearch').value || '').trim().toLocaleLowerCase();
+    const frag = document.createDocumentFragment();
+    let n = 0;
     for (const base of AIRCRAFT) {
       if (cat !== 'all' && base.cat !== cat) continue;
-      grid.append(card(`b:${base.id}`, resolveAircraft(base), name(base), getLang() === 'tr' ? base.typeTr : base.typeEn));
+      if (q) {
+        const f = base.spec || {};
+        const hay = `${base.en} ${f.maker || ''} ${f.country || ''} ${f.year || ''} ${base.typeTr} ${base.typeEn}`.toLocaleLowerCase();
+        if (!q.split(/\s+/).every(w => hay.includes(w))) continue;
+      }
+      frag.append(card(`b:${base.id}`, resolveAircraft(base), name(base), getLang() === 'tr' ? base.typeTr : base.typeEn));
+      n++;
     }
+    grid.append(frag);
+    $('acCount').textContent = t('acCount', { n });
   }
+  $('acSearch').addEventListener('input', () => renderAircraft());
   $$('input[name=acCat]').forEach(r => r.addEventListener('change', () => { prefs.acCat = r.value; savePrefs(); renderAircraft(); }));
 
   function aircraftChanged() {
@@ -356,6 +371,7 @@ export function initMenu(ctx) {
   $('optGoogle').addEventListener('change', e => { prefs.google3d = e.target.checked; savePrefs(); });
   $('optInvert').addEventListener('change', e => { prefs.invert = e.target.checked; savePrefs(); ctx.onOptions(); });
   $('optAssist').addEventListener('change', e => { prefs.assist = e.target.checked; savePrefs(); });
+  $('optCalm').addEventListener('change', e => { prefs.calm = e.target.checked; savePrefs(); });
   $$('input[name=mode]').forEach(r => r.addEventListener('change', () => { prefs.mode = r.value; savePrefs(); updateModeHint(); }));
   $('showWelcome').addEventListener('click', () => { $('welcome').hidden = false; });
 
@@ -415,6 +431,7 @@ export function initMenu(ctx) {
     updateModeHint();
     $('optInvert').checked = !!prefs.invert;
     $('optAssist').checked = prefs.assist !== false;
+    $('optCalm').checked = !!prefs.calm;
     $('optGoogle').checked = !!prefs.google3d;
     $('tokenInput').value = token ? '••••••••' : '';
     $('chosenPlace').textContent = getPlace().name;

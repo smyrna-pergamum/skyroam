@@ -266,3 +266,92 @@ input[type=number] {
   .tl-track { height: 26vh; }
   #ringPanel { top: 120px; }
 }
+
+/* ---------- v4: speed feel, minimap ---------- */
+#feel { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; }
+.minimap {
+  position: absolute; right: 14px; bottom: 14px; width: 176px; padding: 6px 6px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: auto;
+}
+.minimap canvas { width: 164px; height: 164px; display: block; }
+.mm-info { display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; font-size: 11px; line-height: 1.3; max-width: 164px; }
+.mm-info b { font-size: 13px; }
+.mm-info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 164px; }
+.mm-coords { font-variant-numeric: tabular-nums; opacity: .8; }
+.mm-attr { font-size: 9px; opacity: .6; }
+.mm-attr a { color: inherit; }
+body.minimap-off .minimap { display: none; }
+@media (max-width: 640px) {
+  .minimap { top: 64px; bottom: auto; width: 116px; }
+  .minimap canvas { width: 104px; height: 104px; }
+  .mm-coords { display: none; }
+  #ringPanel { top: 220px; }
+}
+.ac-search {
+  width: 100%; margin: 8px 0 2px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: rgba(255,255,255,.06); color: var(--text); font: inherit;
+}
+#acCount { margin: 2px 0 6px; }
+#acGrid { max-height: 46vh; overflow-y: auto; }
+
+/* ---------- v4: touch controls ---------- */
+.touch-ui { display: none; }
+body.touch .touch-ui { display: block; }
+body.touch #hud, body.touch #cesium { touch-action: none; -webkit-user-select: none; user-select: none; }
+body.touch .hud-hint { display: none; }
+.t-stick { position: absolute; left: 0; bottom: 0; width: 46vw; height: 62vh; pointer-events: auto; touch-action: none; }
+.t-base {
+  position: absolute; left: calc(18px + env(safe-area-inset-left)); bottom: 18px; width: 128px; height: 128px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.07), rgba(255,255,255,.14)); border: 2px solid rgba(255,255,255,.28);
+  display: flex; align-items: center; justify-content: center; opacity: .65; transition: opacity .15s;
+}
+.t-stick.on .t-base { opacity: 1; bottom: auto; }
+.t-knob {
+  width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #e5e7eb, #6b7280);
+  box-shadow: 0 3px 10px rgba(0,0,0,.5); pointer-events: none;
+}
+.t-right { position: absolute; right: calc(96px + env(safe-area-inset-right)); bottom: 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: auto; }
+.t-row { display: flex; gap: 10px; }
+.t-btn {
+  width: 54px; height: 54px; border-radius: 14px; border: 1px solid rgba(255,255,255,.25);
+  background: rgba(10,18,32,.55); color: #f1f5f9; font-size: 20px; line-height: 1; touch-action: none;
+  -webkit-tap-highlight-color: transparent; backdrop-filter: blur(6px);
+}
+.t-btn.on, .t-btn:active { background: rgba(56,189,248,.45); }
+.t-pause { position: absolute; top: calc(8px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 46px; height: 40px; font-size: 15px; pointer-events: auto; }
+body.touch .throttle-lever { top: auto; bottom: 14px; right: calc(12px + env(safe-area-inset-right)); transform: none; width: 72px; }
+body.touch .tl-track { width: 34px; height: min(40vh, 210px); }
+body.touch .tl-knob { width: 64px; height: 26px; margin-left: -32px; margin-bottom: -13px; }
+body.touch .minimap { top: calc(8px + env(safe-area-inset-top)); bottom: auto; right: calc(8px + env(safe-area-inset-right)); width: 112px; padding: 4px; }
+body.touch .minimap canvas { width: 100px; height: 100px; }
+body.touch .mm-coords, body.touch .mm-attr a { font-size: 8px; }
+body.touch .mm-coords { display: none; }
+body.touch .hud-left { transform: scale(.72); transform-origin: top left; }
+body.touch .hud-top { top: auto; bottom: 8px; }
+body.touch #ringPanel { top: 160px; right: 8px; }
+body.touch .warn { top: 22%; }
+@media (orientation: portrait) {
+  body.touch .t-stick { height: 45vh; width: 55vw; }
+  body.touch .t-right { right: calc(92px + env(safe-area-inset-right)); }
+  body.touch .t-btn { width: 48px; height: 48px; }
+}
+
+/* ---------- v4: menu on short (landscape phone) screens ---------- */
+.menu-foot { background: #0a1322; z-index: 2; }
+@media (max-height: 520px) {
+  .overlay { padding: 6px; }
+  .panel { padding: 10px 14px 8px; max-height: calc(100vh - 12px); max-height: calc(100dvh - 12px); }
+  .brand { margin-bottom: 6px; }
+  .brand h1 { font-size: 20px; }
+  .brand p { display: none; }
+  .tabs { margin-bottom: 6px; }
+  .tabs button { padding: 6px; }
+  .menu-foot { margin: 8px -14px 0; padding: 6px 14px 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .menu-foot .chosen { flex: 1 1 200px; font-size: 12px; }
+  .menu-foot .actions { margin-top: 0; }
+  .menu-foot .actions button { padding: 8px 14px; }
+  #touchNote { flex-basis: 100%; font-size: 11px; margin: 2px 0 0; }
+  #acGrid { max-height: none; }
+  .small-panel h2 { margin: 4px 0; }
+}
+body.touch .hud-top { display: none; }
