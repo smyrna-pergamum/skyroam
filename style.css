@@ -355,3 +355,6 @@ body.touch .warn { top: 22%; }
   .small-panel h2 { margin: 4px 0; }
 }
 body.touch .hud-top { display: none; }
+
+/* website screenshots: play.html?shot=1 hides the interface */
+body.shot #hud, body.shot .touch-ui, body.shot #toast { display: none !important; }

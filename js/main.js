@@ -9,7 +9,7 @@ import { EngineSound } from './audio.js';
 import { readJSON, writeJSON, getToken } from './storage.js';
 import { initMenu } from './menu.js';
 import { Cockpit } from './cockpit.js';
-import { statsOf } from './aircraft.js';
+import { statsOf, baseById } from './aircraft.js';
 import { Feel } from './feel.js';
 import { MiniMap } from './minimap.js';
 import { TouchControls } from './touch.js';
@@ -25,6 +25,25 @@ const prefs = Object.assign(
   readJSON(PREFS_KEY, {}),
 );
 const savePrefs = () => writeJSON(PREFS_KEY, prefs);
+
+// Launch links from the website: play.html?lat=..&lon=..&name=..&ac=..&hdg=..&alt=..&cam=..&lang=..&fly=1
+// Values are validated and only change where you start; nothing is sent anywhere.
+const launch = (() => {
+  const q = new URLSearchParams(location.search);
+  const num = (k, lo, hi) => { const v = parseFloat(q.get(k)); return Number.isFinite(v) && v >= lo && v <= hi ? v : null; };
+  const out = { fly: q.get('fly') === '1', cam: ['chase', 'cockpit', 'nose'].includes(q.get('cam')) ? q.get('cam') : null, shot: q.get('shot') === '1' };
+  if (['tr', 'en'].includes(q.get('lang'))) prefs.lang = q.get('lang');
+  const lat = num('lat', -85, 85), lon = num('lon', -180, 180);
+  if (lat !== null && lon !== null) {
+    const name = (q.get('name') || '').replace(/[<>]/g, '').slice(0, 80) || `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+    prefs.pick = Object.assign({ cat: 'search' }, prefs.pick || {}, { cat: 'search' });
+    prefs.pick.search = { kind: 'search', name, lat, lon, heading: num('hdg', 0, 360) ?? 0, alt: num('alt', 50, 9000) ?? 450, back: 3000 };
+  }
+  const id = (q.get('ac') || '').toLowerCase();
+  if (id && baseById(id).id === id) prefs.aircraft = `b:${id}`;
+  if (q.toString()) history.replaceState(null, '', location.pathname); // keep the address bar clean
+  return out;
+})();
 setLang(prefs.lang || ((navigator.language || 'en').toLowerCase().startsWith('tr') ? 'tr' : 'en'));
 
 // ---------------------------------------------------------------------------
@@ -547,6 +566,18 @@ scene.preUpdate.addEventListener(() => {
 if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches) $('touchNote').hidden = false;
 
 setPhase('menu');
-setupMap().then(() => { menu.updateMapStatus(); setPreviewPlace(menu.getPlace()); });
+setupMap().then(() => {
+  menu.updateMapStatus(); setPreviewPlace(menu.getPlace());
+  if (launch.fly) {
+    $('welcome').hidden = true;
+    if (launch.cam) camMode = launch.cam;
+    if (launch.shot) document.body.classList.add('shot');
+    startFlight();
+    // browsers only allow sound after a tap or key press
+    const wake = () => sound.start();
+    addEventListener('pointerdown', wake, { once: true });
+    addEventListener('keydown', wake, { once: true });
+  }
+});
 
 window.skyroam = { viewer, get state() { return state; }, get aircraft() { return ac; } };

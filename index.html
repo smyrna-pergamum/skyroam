@@ -1,273 +1,185 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="mobile-web-app-capable" content="yes">
-  <title>SkyRoam</title>
-  <meta name="description" content="Browser flight game over the real world: fly over real terrain, cities and landmarks.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%2338bdf8' d='M60 30 36 26 26 6h-6l5 20-14-2-5-7H2l4 15-4 15h4l5-7 14-2-5 20h6l10-20 24-4c3 0 3-4 0-4z'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.123.0/Build/Cesium/Widgets/widgets.css">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/cesium@1.123.0/Build/Cesium/Cesium.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyRoam, a free flight game over the real world</title>
+  <meta name="description" content="Fly 100 real aircraft over the real map, from your own town, in your browser. Free, no account, works on phones.">
+  <meta name="theme-color" content="#0d1424">
+  <meta property="og:title" content="SkyRoam">
+  <meta property="og:description" content="Take off from your own street. A free flight game over the real map.">
+  <meta property="og:image" content="site/img/istanbul-1600.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..700&display=swap">
+  <link rel="preload" as="image" href="site/img/istanbul-1600.jpg" imagesrcset="site/img/istanbul-960.jpg 960w, site/img/istanbul-1600.jpg 1600w, site/img/istanbul-2400.jpg 2400w" imagesizes="100vw">
+  <link rel="stylesheet" href="site/site.css">
+  <script>document.documentElement.classList.add('js');</script>
 </head>
 <body>
-  <div id="cesium"></div>
-  <canvas id="feel"></canvas>
-  <canvas id="cockpit" hidden></canvas>
+  <a class="skip" href="#main" data-i18n="skip">Skip to content</a>
 
-  <!-- In-flight HUD -->
-  <div id="hud" hidden>
-    <div class="hud-top">
-      <div id="hHeading" class="heading">000°</div>
-      <div id="hPlace" class="mode-badge"></div>
-    </div>
-
-    <div class="hud-left glass">
-      <div class="gauge"><span class="lbl" data-i18n="hudSpeed"></span><b id="hSpeed">0</b><span class="unit">km/h</span></div>
-      <div class="gauge"><span class="lbl" data-i18n="hudAlt"></span><b id="hAlt">0</b><span class="unit">m</span></div>
-      <div class="gauge"><span class="lbl" data-i18n="hudAgl"></span><b id="hAgl">0</b><span class="unit">m</span></div>
-      <div class="gauge"><span class="lbl" data-i18n="hudVs"></span><b id="hVs">0</b><span class="unit">m/s</span></div>
-      <div class="throttle">
-        <span class="lbl" data-i18n="hudThrottle"></span>
-        <div class="bar"><div id="hThrottle"></div></div>
-        <b id="hThrottleTxt">0%</b>
-      </div>
-    </div>
-
-    <div class="hud-center">
-      <div class="horizon-clip"><div id="horizon"><div class="sky"></div><div class="line"></div></div></div>
-      <div class="reticle"></div>
-    </div>
-
-    <div id="ringPanel" class="hud-right glass" hidden>
-      <div class="ring-count"><span data-i18n="hudRing"></span> <b id="rCount">0/0</b></div>
-      <div class="ring-time" id="rTime">0:00.0</div>
-      <div class="ring-nav">
-        <div id="rArrow" class="arrow">➤</div>
-        <div><b id="rDist">0</b> m<br><span id="rDy"></span></div>
-      </div>
-    </div>
-
-    <div class="throttle-lever glass" id="throttleLever">
-      <span class="lbl" data-i18n="hudThrottle"></span>
-      <div class="tl-track" id="tlTrack" role="slider" tabindex="-1" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <div class="tl-fill" id="tlFill"></div>
-        <div class="tl-knob" id="tlKnob"></div>
-      </div>
-      <b id="tlTxt">0%</b>
-    </div>
-
-    <div id="minimap" class="minimap glass">
-      <canvas id="mmCanvas"></canvas>
-      <div class="mm-info">
-        <b id="mmHeading">000° N</b>
-        <span id="mmPlace">…</span>
-        <span id="mmCoords" class="mm-coords"></span>
-        <span class="mm-attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>
-      </div>
-    </div>
-
-    <div id="warn" class="warn" hidden></div>
-    <div class="hud-hint" data-i18n="hudHint"></div>
-  </div>
-
-  <!-- First-run welcome: Cesium ion token -->
-  <div id="welcome" class="overlay" hidden>
-    <div class="panel">
-      <header class="brand">
-        <div>
-          <h1>SkyRoam</h1>
-          <p data-i18n="welcomeTitle"></p>
-        </div>
-        <button class="ghost small langBtn" type="button">EN</button>
-      </header>
-      <p data-i18n="welcomeLead"></p>
-      <div class="callout">
-        <strong data-i18n="welcomeWarnTitle"></strong>
-        <ul data-i18n-html="welcomeWarn"></ul>
-      </div>
-      <ol class="steps" data-i18n-html="tokenSteps"></ol>
-      <div class="field">
-        <label for="welcomeToken" data-i18n="tokenLabel"></label>
-        <input id="welcomeToken" type="password" autocomplete="off" spellcheck="false" placeholder="eyJhbGciOi...">
-      </div>
-      <label class="check"><input type="checkbox" id="welcomeRemember" checked><span data-i18n="tokenRemember"></span></label>
-      <div class="actions">
-        <button id="welcomeSkip" class="ghost" type="button" data-i18n="welcomeSkip"></button>
-        <button id="welcomeSave" class="primary" type="button" data-i18n="welcomeSave"></button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Main menu -->
-  <div id="menu" class="overlay side">
-    <div class="panel menu-panel">
-      <header class="brand">
-        <div>
-          <h1>SkyRoam</h1>
-          <p data-i18n="tagline"></p>
-        </div>
-        <button class="ghost small langBtn" type="button">EN</button>
-      </header>
-
-      <nav class="tabs" role="tablist">
-        <button type="button" role="tab" data-tab="fly" data-i18n="tabFly"></button>
-        <button type="button" role="tab" data-tab="plane" data-i18n="tabPlane"></button>
-        <button type="button" role="tab" data-tab="settings" data-i18n="tabSettings"></button>
+  <header class="nav">
+    <div class="container nav__in">
+      <a class="wordmark" href="./" aria-label="SkyRoam home">SkyRoam</a>
+      <nav aria-label="Sections">
+        <ul class="nav__links">
+          <li><a href="#aircraft" data-i18n="navAircraft">Aircraft</a></li>
+          <li><a href="#cockpit" data-i18n="navCockpit">Cockpit</a></li>
+          <li><a href="#phone" data-i18n="navPhone">Phone</a></li>
+          <li><a href="#map" data-i18n="navMap">Map</a></li>
+        </ul>
       </nav>
-
-      <!-- Tab: flight -->
-      <section class="tab" data-panel="fly">
-        <div class="seg small-seg" role="radiogroup">
-          <label><input type="radio" name="placeCat" value="city" checked><span data-i18n="catCity"></span></label>
-          <label><input type="radio" name="placeCat" value="historic"><span data-i18n="catHistoric"></span></label>
-          <label><input type="radio" name="placeCat" value="nature"><span data-i18n="catNature"></span></label>
-          <label><input type="radio" name="placeCat" value="search"><span data-i18n="catSearch"></span></label>
-          <label><input type="radio" name="placeCat" value="coords"><span data-i18n="catCoords"></span></label>
-        </div>
-
-        <div class="picker" data-pick="city">
-          <div class="field"><label for="contSel" data-i18n="continent"></label><select id="contSel"></select></div>
-          <div class="field"><label for="countrySel" data-i18n="country"></label><select id="countrySel"></select></div>
-          <div class="field"><label for="citySel" data-i18n="city"></label><select id="citySel"></select></div>
-        </div>
-        <div class="picker" data-pick="historic" hidden>
-          <div class="field"><label for="histSel" data-i18n="catHistoric"></label><select id="histSel"></select></div>
-        </div>
-        <div class="picker" data-pick="nature" hidden>
-          <div class="field"><label for="natSel" data-i18n="catNature"></label><select id="natSel"></select></div>
-        </div>
-        <div class="picker" data-pick="search" hidden>
-          <div class="field search-row">
-            <input id="searchInput" type="text" autocomplete="off" data-i18n-ph="searchPh">
-            <button id="searchBtn" class="secondary" type="button" data-i18n="searchBtn"></button>
-          </div>
-          <button id="geoBtn" class="ghost small" type="button" data-i18n="geoBtn"></button>
-          <div id="searchResults" class="results"></div>
-          <p class="hint" data-i18n="searchNote"></p>
-        </div>
-        <div class="picker" data-pick="coords" hidden>
-          <div class="coord-grid">
-            <div class="field"><label for="coordLat" data-i18n="coordLat"></label><input id="coordLat" type="text" inputmode="text" autocomplete="off" placeholder="41.0082"></div>
-            <div class="field"><label for="coordLon" data-i18n="coordLon"></label><input id="coordLon" type="text" inputmode="text" autocomplete="off" placeholder="28.9784"></div>
-            <div class="field"><label for="coordHdg" data-i18n="coordHdg"></label><input id="coordHdg" type="number" min="0" max="359" step="1" placeholder="0"></div>
-            <div class="field"><label for="coordAlt" data-i18n="coordAlt"></label><input id="coordAlt" type="number" min="0" max="15000" step="10" placeholder="450"></div>
-          </div>
-          <button id="coordGo" class="secondary" type="button" data-i18n="coordGo"></button>
-          <p class="hint" data-i18n="coordHint"></p>
-        </div>
-
-        <div class="field">
-          <span class="label" data-i18n="mode"></span>
-          <div class="seg" role="radiogroup">
-            <label><input type="radio" name="mode" value="free" checked><span data-i18n="modeFree"></span></label>
-            <label><input type="radio" name="mode" value="rings"><span data-i18n="modeRings"></span></label>
-          </div>
-          <p class="hint" id="modeHint"></p>
-        </div>
-
-        <div class="field row">
-          <label class="check"><input type="checkbox" id="optInvert"><span data-i18n="optInvert"></span></label>
-          <label class="check"><input type="checkbox" id="optAssist" checked><span data-i18n="optAssist"></span></label>
-          <label class="check"><input type="checkbox" id="optCalm"><span data-i18n="optCalm"></span></label>
-          <label class="check"><input type="checkbox" id="optWarn" checked><span data-i18n="optWarn"></span></label>
-        </div>
-      </section>
-
-      <!-- Tab: aircraft -->
-      <section class="tab" data-panel="plane" hidden>
-        <div class="seg small-seg" role="radiogroup">
-          <label><input type="radio" name="acCat" value="all" checked><span data-i18n="acAll"></span></label>
-          <label><input type="radio" name="acCat" value="civil"><span data-i18n="acCivil"></span></label>
-          <label><input type="radio" name="acCat" value="commercial"><span data-i18n="acCommercial"></span></label>
-          <label><input type="radio" name="acCat" value="military"><span data-i18n="acMilitary"></span></label>
-          <label><input type="radio" name="acCat" value="historic"><span data-i18n="acHistoric"></span></label>
-          <label><input type="radio" name="acCat" value="mine"><span data-i18n="acMine"></span></label>
-        </div>
-        <input type="search" id="acSearch" class="ac-search" data-i18n-ph="acSearchPh" autocomplete="off">
-        <p id="acCount" class="hint"></p>
-        <div id="acGrid" class="ac-grid"></div>
-        <div class="actions">
-          <button id="hangarOpen" class="secondary" type="button" data-i18n="hangarOpen"></button>
-        </div>
-
-        <div id="hangar" class="hangar" hidden>
-          <h3 data-i18n="hangarTitle"></h3>
-          <p class="hint"><span data-i18n="hangarBase"></span>: <b id="hgBase"></b></p>
-          <div class="field">
-            <label for="hgName" data-i18n="buildName"></label>
-            <input id="hgName" type="text" maxlength="28" autocomplete="off">
-          </div>
-          <div class="slider"><label for="hgPower" data-i18n="modPower"></label><input id="hgPower" type="range" min="0.5" max="2" step="0.05"><output id="hgPowerOut"></output></div>
-          <div class="slider"><label for="hgWing" data-i18n="modWing"></label><input id="hgWing" type="range" min="0.7" max="1.4" step="0.05"><output id="hgWingOut"></output></div>
-          <div class="slider"><label for="hgAgility" data-i18n="modAgility"></label><input id="hgAgility" type="range" min="0.6" max="1.8" step="0.05"><output id="hgAgilityOut"></output></div>
-          <div class="colors">
-            <label><input id="hgColP" type="color"><span data-i18n="colPrimary"></span></label>
-            <label><input id="hgColS" type="color"><span data-i18n="colSecondary"></span></label>
-            <label><input id="hgColA" type="color"><span data-i18n="colAccent"></span></label>
-          </div>
-          <div id="hgStats" class="stats"></div>
-          <div class="actions">
-            <button id="hgDelete" class="ghost" type="button" data-i18n="hangarDelete"></button>
-            <button id="hgClose" class="ghost" type="button" data-i18n="hangarClose"></button>
-            <button id="hgSaveNew" class="secondary" type="button" data-i18n="hangarSaveNew"></button>
-            <button id="hgSave" class="primary" type="button" data-i18n="hangarSave"></button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Tab: settings -->
-      <section class="tab" data-panel="settings" hidden>
-        <h3><span data-i18n="mapSettings"></span> <span id="mapStatus" class="pill"></span></h3>
-        <p data-i18n-html="tokenIntro"></p>
-        <ol class="steps" data-i18n-html="tokenSteps"></ol>
-        <div class="field">
-          <label for="tokenInput" data-i18n="tokenLabel"></label>
-          <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="eyJhbGciOi...">
-        </div>
-        <div class="field row">
-          <label class="check"><input type="checkbox" id="optRemember" checked><span data-i18n="tokenRemember"></span></label>
-          <label class="check"><input type="checkbox" id="optGoogle"><span data-i18n="optGoogle"></span></label>
-        </div>
-        <p class="hint" data-i18n="tokenPrivacy"></p>
-        <div class="actions">
-          <button id="showWelcome" class="ghost small" type="button" data-i18n="showWelcome"></button>
-          <button id="forgetBtn" class="ghost" type="button" data-i18n="tokenForget"></button>
-          <button id="saveTokenBtn" class="secondary" type="button" data-i18n="tokenSave"></button>
-        </div>
-        <h3 data-i18n="controls"></h3>
-        <table class="keys"><tbody id="keysTable"></tbody></table>
-      </section>
-
-      <footer class="menu-foot">
-        <div class="chosen">
-          <span>📍 <b id="chosenPlace"></b></span>
-          <span>✈ <b id="chosenPlane"></b></span>
-        </div>
-        <div class="actions">
-          <button id="resumeBtn" class="secondary" type="button" hidden data-i18n="resume"></button>
-          <button id="startBtn" class="primary" type="button" data-i18n="start"></button>
-        </div>
-        <p id="touchNote" class="hint warn-text" hidden data-i18n="touchNote"></p>
-      </footer>
-    </div>
-  </div>
-
-  <!-- Crash / finish result -->
-  <div id="result" class="overlay" hidden>
-    <div class="panel small-panel">
-      <h2 id="resTitle"></h2>
-      <p id="resText"></p>
-      <div class="actions">
-        <button id="resMenuBtn" class="ghost" type="button" data-i18n="menu"></button>
-        <button id="resRetryBtn" class="primary" type="button" data-i18n="retry"></button>
+      <div class="nav__end">
+        <button class="lang" type="button" id="langBtn" aria-label="Türkçe">TR</button>
+        <a class="btn btn--quiet btn--sm" href="play.html" data-i18n="navPlay">Play</a>
       </div>
     </div>
-  </div>
+  </header>
 
-  <div id="toast" role="status" aria-live="polite"></div>
+  <main id="main">
+    <!-- 1. Hero: the real game over Istanbul, and the town you take off from -->
+    <section class="hero" aria-labelledby="heroHead">
+      <figure class="hero__shot" data-slot="hero" data-alt="An Airbus A320neo flying over the Bosphorus in Istanbul, seen from behind">
+        <img src="site/img/istanbul-1600.jpg"
+             srcset="site/img/istanbul-960.jpg 960w, site/img/istanbul-1600.jpg 1600w, site/img/istanbul-2400.jpg 2400w" sizes="100vw"
+             width="2400" height="1500" alt="An Airbus A320neo flying over the Bosphorus in Istanbul, seen from behind" fetchpriority="high">
+      </figure>
+      <div class="container hero__in">
+        <h1 id="heroHead" class="hero__head" data-i18n="heroHead">Take off from your own street.</h1>
+        <p class="hero__lead" data-i18n="heroLead">A free flight game over the real map, right in your browser.</p>
+        <form class="takeoff" id="takeoff" action="play.html" method="get" role="search" autocomplete="off">
+          <label class="visually-hidden" for="town" data-i18n="townLabel">Town or city to take off from</label>
+          <input class="takeoff__input" id="town" name="town" type="search" placeholder="Type a town, like Bergama" data-i18n-ph="townPh" aria-describedby="takeoffMsg">
+          <button class="btn" type="submit" id="takeoffBtn" data-i18n="takeoff">Take off</button>
+        </form>
+        <p class="takeoff__msg" id="takeoffMsg" role="status" aria-live="polite"></p>
+        <ul class="takeoff__list" id="townList" hidden></ul>
+        <p class="hero__caption" data-i18n="heroCaption">Above: the Bosphorus, Istanbul, in an Airbus A320neo. A real screenshot.</p>
+      </div>
+    </section>
 
-  <script type="module" src="js/main.js"></script>
+    <!-- 2. A century of aircraft, scrubbed by year -->
+    <section class="fleet" id="aircraft" aria-labelledby="fleetHead">
+      <div class="container">
+        <div class="fleet__top">
+          <h2 id="fleetHead" class="section-head" data-i18n="fleetHead">One hundred aircraft, 1903 to now.</h2>
+          <p class="section-lead" data-i18n="fleetLead">Each one built from its real size and speed, and each flies like itself.</p>
+        </div>
+        <div class="fleet__stage" id="fleetStage">
+          <p class="fleet__year num" id="acYear">1903</p>
+          <div class="fleet__card">
+            <h3 class="fleet__name" id="acName">Wright Flyer</h3>
+            <p class="fleet__meta" id="acMeta">Wright Brothers, USA. First powered aeroplane</p>
+            <dl class="fleet__specs">
+              <div><dt data-i18n="span">Wingspan</dt><dd class="num" id="acSpan">12.3 m</dd></div>
+              <div><dt data-i18n="top">Top speed</dt><dd class="num" id="acTop">48 km/h</dd></div>
+            </dl>
+            <div class="fleet__bar" aria-hidden="true"><span id="acBar"></span></div>
+            <a class="link" id="acFly" href="play.html?ac=wright-flyer" data-i18n="flyIt">Fly this one</a>
+          </div>
+        </div>
+        <div class="fleet__scrub" id="fleetScrub" hidden>
+          <button class="step" type="button" id="acPrev" aria-label="Previous aircraft"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <label class="visually-hidden" for="acRange" data-i18n="scrubLabel">Aircraft by year</label>
+          <input type="range" id="acRange" min="0" max="99" value="0" step="1">
+          <button class="step" type="button" id="acNext" aria-label="Next aircraft"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+        <div class="seg" id="acCats" role="group" aria-label="Aircraft type" hidden>
+          <button type="button" aria-pressed="true" data-cat="all" data-i18n="catAll">All</button>
+          <button type="button" aria-pressed="false" data-cat="historic" data-i18n="catHistoric">Historic</button>
+          <button type="button" aria-pressed="false" data-cat="commercial" data-i18n="catCommercial">Airliners</button>
+          <button type="button" aria-pressed="false" data-cat="civil" data-i18n="catCivil">Light and business</button>
+          <button type="button" aria-pressed="false" data-cat="military" data-i18n="catMilitary">Military</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. The cockpit -->
+    <section class="cockpit" id="cockpit" aria-labelledby="cockpitHead">
+      <div class="container cockpit__grid">
+        <figure class="shot shot--wide" data-slot="cockpit" data-alt="The Boeing 777 cockpit over Dubai: speed tape, horizon, engine gauges and the minimap">
+          <img src="site/img/cockpit-1600.jpg" srcset="site/img/cockpit-960.jpg 960w, site/img/cockpit-1600.jpg 1600w" sizes="(min-width: 60rem) 62vw, 100vw"
+               width="1600" height="1000" alt="The Boeing 777 cockpit over Dubai: speed tape, horizon, engine gauges and the minimap" loading="lazy">
+        </figure>
+        <div class="cockpit__text">
+          <h2 id="cockpitHead" class="section-head" data-i18n="cockpitHead">Sit up front.</h2>
+          <p class="section-lead" data-i18n="cockpitLead">Press C for the cockpit: glass screens in airliners, round dials in a Cessna, and a map that turns with you.</p>
+          <p class="caption" data-i18n="cockpitCaption">Boeing 777-300ER over Dubai.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Listen -->
+    <section class="listen" aria-labelledby="listenHead">
+      <div class="container">
+        <h2 id="listenHead" class="section-head" data-i18n="listenHead">Turn the sound on.</h2>
+        <p class="section-lead" data-i18n="listenLead">Real engine recordings, and the cockpit talks back when you get it wrong.</p>
+        <ul class="sounds" id="sounds">
+          <li><button class="sound" type="button" data-src="sounds/prop.mp3" data-from="2" aria-pressed="false"><span class="sound__name" data-i18n="sProp">Propeller</span><span class="sound__what" data-i18n="sPropWhat">Piston engine at cruise</span></button></li>
+          <li><button class="sound" type="button" data-src="sounds/jet.mp3" data-from="1.5" aria-pressed="false"><span class="sound__name" data-i18n="sJet">Jet</span><span class="sound__what" data-i18n="sJetWhat">Turbofans spooling up</span></button></li>
+          <li><button class="sound" type="button" data-src="sounds/gear.mp3" data-from="5.3" aria-pressed="false"><span class="sound__name" data-i18n="sGear">Gear down</span><span class="sound__what" data-i18n="sGearWhat">Below 180 metres, on its own</span></button></li>
+          <li><button class="sound" type="button" data-say="pull up, pull up" aria-pressed="false"><span class="sound__name" data-i18n="sPull">Pull up</span><span class="sound__what" data-i18n="sPullWhat">When the ground comes too fast</span></button></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 5. Phone -->
+    <section class="phone" id="phone" aria-labelledby="phoneHead">
+      <div class="container phone__grid">
+        <div class="phone__text">
+          <h2 id="phoneHead" class="section-head" data-i18n="phoneHead">Fly with two thumbs.</h2>
+          <p class="section-lead" data-i18n="phoneLead">On a phone, the left thumb steers and the right one runs throttle, rudder, gear and camera. At a desk, use the keyboard or a gamepad.</p>
+          <p class="caption" data-i18n="phoneCaption">Cessna 172 over Bergama, on a phone.</p>
+        </div>
+        <figure class="shot shot--phone" data-slot="phone" data-alt="SkyRoam on a phone: a Cessna over Bergama with the touch stick, buttons and throttle">
+          <img src="site/img/phone-780.jpg" width="780" height="1688" sizes="(min-width: 60rem) 360px, 70vw"
+               alt="SkyRoam on a phone: a Cessna over Bergama with the touch stick, buttons and throttle" loading="lazy">
+        </figure>
+      </div>
+    </section>
+
+    <!-- 6. Map and token -->
+    <section class="map" id="map" aria-labelledby="mapHead">
+      <div class="container">
+        <h2 id="mapHead" class="section-head" data-i18n="mapHead">Your map, your key.</h2>
+        <div class="modes">
+          <div class="mode">
+            <h3 class="mode__name" data-i18n="liteName">Lite</h3>
+            <p data-i18n="liteText">Opens at once. Satellite photos of the whole planet, on flat ground.</p>
+          </div>
+          <div class="mode">
+            <h3 class="mode__name" data-i18n="fullName">3D</h3>
+            <p data-i18n="fullText">Add your own free Cesium ion key for mountains, valleys and buildings. It stays in your browser.</p>
+          </div>
+          <div class="mode">
+            <h3 class="mode__name" data-i18n="privName">Nothing else</h3>
+            <p data-i18n="privText">No account, no ads, no analytics. The code is open on GitHub.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. The way out -->
+    <section class="last" aria-labelledby="lastHead">
+      <div class="container last__in">
+        <h2 id="lastHead" class="last__head" data-i18n="lastHead">Where will you take off?</h2>
+        <a class="btn btn--quiet btn--lg" href="#main" id="backToTown" data-i18n="lastBtn">Pick a town</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="container foot__in">
+      <p class="wordmark wordmark--foot">SkyRoam</p>
+      <ul class="foot__links">
+        <li><a href="play.html" data-i18n="footPlay">Play</a></li>
+        <li><a href="https://github.com/smyrna-pergamum/skyroam" data-i18n="footCode">Source code</a></li>
+      </ul>
+      <p class="foot__credits" data-i18n="credits">Map by CesiumJS with Esri imagery and OpenStreetMap. Place search by Open-Meteo. Sounds from Pixabay. Screenshots are from the game.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="site/site.js"></script>
 </body>
 </html>

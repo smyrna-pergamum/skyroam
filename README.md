@@ -4,7 +4,29 @@
 
 **Gerçek dünya haritası üzerinde tarayıcıda uçuş oyunu.** Uçağını seç, dünyadaki herhangi bir şehri ya da ünlü bir tarihi alanı seç ve uç. Kurulum yok, sunucu yok: tek bir statik sayfa.
 
-**▶ Play / Oyna: <https://smyrna-pergamum.github.io/skyroam/>**
+**Website / Web sitesi: <https://smyrna-pergamum.github.io/skyroam/>**
+**▶ Play / Oyna: <https://smyrna-pergamum.github.io/skyroam/play.html>**
+
+## Website and launch links / Web sitesi ve başlatma bağlantıları
+
+The site (`index.html`) lets you type any town and take off from it; it opens the game with a launch link. You can build these links yourself:
+
+Site (`index.html`) bir yer adı yazıp oradan havalanmanı sağlar; oyunu bir başlatma bağlantısıyla açar. Bu bağlantıları kendin de kurabilirsin:
+
+```
+play.html?fly=1&lat=41.04&lon=29.02&name=Istanbul&ac=a320neo&hdg=20&alt=700&cam=cockpit&lang=tr
+```
+
+| param | meaning |
+|---|---|
+| `lat`, `lon`, `name` | where to start (decimal degrees, a label) |
+| `ac` | aircraft id from `js/fleet.js`, e.g. `cessna-172`, `concorde`, `f-16c` |
+| `hdg`, `alt` | heading in degrees, altitude in metres |
+| `cam` | `chase`, `cockpit` or `nose` |
+| `lang` | `tr` or `en` |
+| `fly=1` | skip the menu and take off at once (without it, the menu opens with these choices selected) |
+
+Values are checked and only change where you start; the address bar is cleaned after loading.
 
 ---
 
@@ -91,13 +113,13 @@ Keys are read by physical position, so WASD works on AZERTY and other layouts to
 
 ## Run locally
 
-ES modules need an HTTP server (opening `index.html` as a file will not work):
+ES modules need an HTTP server (opening the files directly will not work):
 
 ```bash
 python -m http.server 8000
 ```
 
-Then open <http://localhost:8000>.
+Then open <http://localhost:8000> for the site, or <http://localhost:8000/play.html> for the game.
 
 ## Deploy to GitHub Pages
 
@@ -106,9 +128,11 @@ Then open <http://localhost:8000>.
 ## Project structure
 
 ```
-index.html        page: welcome screen, menu (flight / aircraft / settings), HUD
-style.css         UI and HUD styles
-js/main.js        viewer, map modes, game loop, camera, HUD
+index.html        website: town search, aircraft by year, cockpit, sounds, phone, map modes
+site/             website styles, script and screenshots (taken from the game)
+play.html         the game: welcome screen, menu (flight / aircraft / settings), HUD
+style.css         game UI and HUD styles
+js/main.js        viewer, map modes, game loop, camera, HUD, launch links
 js/menu.js        menu tabs, place picker + search + coordinates, aircraft grid, hangar, welcome
 js/cockpit.js     cockpit interiors drawn on a canvas overlay (GA, glass, fighter, glider)
 js/fleet.js       100 real aircraft: dimensions, wing/tail/engine layout, speeds, livery

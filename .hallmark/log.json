@@ -1,0 +1,31 @@
+[
+ {
+  "shape": "the flight, take-off to landing",
+  "theme": "custom",
+  "axes": "dark/grotesk-sans/warm",
+  "hero": "full-bleed game screenshot, head and town field bottom left on a scrim",
+  "nav": "wordmark, four links, language, quiet Play",
+  "footer": "wordmark, two links, credits",
+  "imagery": "product screenshots via capture.mjs",
+  "photos": [],
+  "entry": "town search",
+  "fingerprint": "night-navy amber archivo-wide",
+  "sections": [
+   "hero",
+   "aircraft by year",
+   "cockpit",
+   "sounds",
+   "phone",
+   "map modes",
+   "last",
+   "footer"
+  ],
+  "signature": "type any town and take off from it",
+  "waived": [
+   "39b"
+  ],
+  "prompt": "SkyRoam landing site, reference georgedo.com",
+  "date": "2026-11-12",
+  "mode": "build"
+ }
+]

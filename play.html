@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>SkyRoam</title>
+  <meta name="description" content="Browser flight game over the real world: fly over real terrain, cities and landmarks.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%2338bdf8' d='M60 30 36 26 26 6h-6l5 20-14-2-5-7H2l4 15-4 15h4l5-7 14-2-5 20h6l10-20 24-4c3 0 3-4 0-4z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.123.0/Build/Cesium/Widgets/widgets.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.123.0/Build/Cesium/Cesium.js"></script>
+</head>
+<body>
+  <div id="cesium"></div>
+  <canvas id="feel"></canvas>
+  <canvas id="cockpit" hidden></canvas>
+
+  <!-- In-flight HUD -->
+  <div id="hud" hidden>
+    <div class="hud-top">
+      <div id="hHeading" class="heading">000°</div>
+      <div id="hPlace" class="mode-badge"></div>
+    </div>
+
+    <div class="hud-left glass">
+      <div class="gauge"><span class="lbl" data-i18n="hudSpeed"></span><b id="hSpeed">0</b><span class="unit">km/h</span></div>
+      <div class="gauge"><span class="lbl" data-i18n="hudAlt"></span><b id="hAlt">0</b><span class="unit">m</span></div>
+      <div class="gauge"><span class="lbl" data-i18n="hudAgl"></span><b id="hAgl">0</b><span class="unit">m</span></div>
+      <div class="gauge"><span class="lbl" data-i18n="hudVs"></span><b id="hVs">0</b><span class="unit">m/s</span></div>
+      <div class="throttle">
+        <span class="lbl" data-i18n="hudThrottle"></span>
+        <div class="bar"><div id="hThrottle"></div></div>
+        <b id="hThrottleTxt">0%</b>
+      </div>
+    </div>
+
+    <div class="hud-center">
+      <div class="horizon-clip"><div id="horizon"><div class="sky"></div><div class="line"></div></div></div>
+      <div class="reticle"></div>
+    </div>
+
+    <div id="ringPanel" class="hud-right glass" hidden>
+      <div class="ring-count"><span data-i18n="hudRing"></span> <b id="rCount">0/0</b></div>
+      <div class="ring-time" id="rTime">0:00.0</div>
+      <div class="ring-nav">
+        <div id="rArrow" class="arrow">➤</div>
+        <div><b id="rDist">0</b> m<br><span id="rDy"></span></div>
+      </div>
+    </div>
+
+    <div class="throttle-lever glass" id="throttleLever">
+      <span class="lbl" data-i18n="hudThrottle"></span>
+      <div class="tl-track" id="tlTrack" role="slider" tabindex="-1" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="tl-fill" id="tlFill"></div>
+        <div class="tl-knob" id="tlKnob"></div>
+      </div>
+      <b id="tlTxt">0%</b>
+    </div>
+
+    <div id="minimap" class="minimap glass">
+      <canvas id="mmCanvas"></canvas>
+      <div class="mm-info">
+        <b id="mmHeading">000° N</b>
+        <span id="mmPlace">…</span>
+        <span id="mmCoords" class="mm-coords"></span>
+        <span class="mm-attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>
+      </div>
+    </div>
+
+    <div id="warn" class="warn" hidden></div>
+    <div class="hud-hint" data-i18n="hudHint"></div>
+  </div>
+
+  <!-- First-run welcome: Cesium ion token -->
+  <div id="welcome" class="overlay" hidden>
+    <div class="panel">
+      <header class="brand">
+        <div>
+          <h1>SkyRoam</h1>
+          <p data-i18n="welcomeTitle"></p>
+        </div>
+        <button class="ghost small langBtn" type="button">EN</button>
+      </header>
+      <p data-i18n="welcomeLead"></p>
+      <div class="callout">
+        <strong data-i18n="welcomeWarnTitle"></strong>
+        <ul data-i18n-html="welcomeWarn"></ul>
+      </div>
+      <ol class="steps" data-i18n-html="tokenSteps"></ol>
+      <div class="field">
+        <label for="welcomeToken" data-i18n="tokenLabel"></label>
+        <input id="welcomeToken" type="password" autocomplete="off" spellcheck="false" placeholder="eyJhbGciOi...">
+      </div>
+      <label class="check"><input type="checkbox" id="welcomeRemember" checked><span data-i18n="tokenRemember"></span></label>
+      <div class="actions">
+        <button id="welcomeSkip" class="ghost" type="button" data-i18n="welcomeSkip"></button>
+        <button id="welcomeSave" class="primary" type="button" data-i18n="welcomeSave"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main menu -->
+  <div id="menu" class="overlay side">
+    <div class="panel menu-panel">
+      <header class="brand">
+        <div>
+          <h1>SkyRoam</h1>
+          <p data-i18n="tagline"></p>
+        </div>
+        <button class="ghost small langBtn" type="button">EN</button>
+      </header>
+
+      <nav class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="fly" data-i18n="tabFly"></button>
+        <button type="button" role="tab" data-tab="plane" data-i18n="tabPlane"></button>
+        <button type="button" role="tab" data-tab="settings" data-i18n="tabSettings"></button>
+      </nav>
+
+      <!-- Tab: flight -->
+      <section class="tab" data-panel="fly">
+        <div class="seg small-seg" role="radiogroup">
+          <label><input type="radio" name="placeCat" value="city" checked><span data-i18n="catCity"></span></label>
+          <label><input type="radio" name="placeCat" value="historic"><span data-i18n="catHistoric"></span></label>
+          <label><input type="radio" name="placeCat" value="nature"><span data-i18n="catNature"></span></label>
+          <label><input type="radio" name="placeCat" value="search"><span data-i18n="catSearch"></span></label>
+          <label><input type="radio" name="placeCat" value="coords"><span data-i18n="catCoords"></span></label>
+        </div>
+
+        <div class="picker" data-pick="city">
+          <div class="field"><label for="contSel" data-i18n="continent"></label><select id="contSel"></select></div>
+          <div class="field"><label for="countrySel" data-i18n="country"></label><select id="countrySel"></select></div>
+          <div class="field"><label for="citySel" data-i18n="city"></label><select id="citySel"></select></div>
+        </div>
+        <div class="picker" data-pick="historic" hidden>
+          <div class="field"><label for="histSel" data-i18n="catHistoric"></label><select id="histSel"></select></div>
+        </div>
+        <div class="picker" data-pick="nature" hidden>
+          <div class="field"><label for="natSel" data-i18n="catNature"></label><select id="natSel"></select></div>
+        </div>
+        <div class="picker" data-pick="search" hidden>
+          <div class="field search-row">
+            <input id="searchInput" type="text" autocomplete="off" data-i18n-ph="searchPh">
+            <button id="searchBtn" class="secondary" type="button" data-i18n="searchBtn"></button>
+          </div>
+          <button id="geoBtn" class="ghost small" type="button" data-i18n="geoBtn"></button>
+          <div id="searchResults" class="results"></div>
+          <p class="hint" data-i18n="searchNote"></p>
+        </div>
+        <div class="picker" data-pick="coords" hidden>
+          <div class="coord-grid">
+            <div class="field"><label for="coordLat" data-i18n="coordLat"></label><input id="coordLat" type="text" inputmode="text" autocomplete="off" placeholder="41.0082"></div>
+            <div class="field"><label for="coordLon" data-i18n="coordLon"></label><input id="coordLon" type="text" inputmode="text" autocomplete="off" placeholder="28.9784"></div>
+            <div class="field"><label for="coordHdg" data-i18n="coordHdg"></label><input id="coordHdg" type="number" min="0" max="359" step="1" placeholder="0"></div>
+            <div class="field"><label for="coordAlt" data-i18n="coordAlt"></label><input id="coordAlt" type="number" min="0" max="15000" step="10" placeholder="450"></div>
+          </div>
+          <button id="coordGo" class="secondary" type="button" data-i18n="coordGo"></button>
+          <p class="hint" data-i18n="coordHint"></p>
+        </div>
+
+        <div class="field">
+          <span class="label" data-i18n="mode"></span>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="mode" value="free" checked><span data-i18n="modeFree"></span></label>
+            <label><input type="radio" name="mode" value="rings"><span data-i18n="modeRings"></span></label>
+          </div>
+          <p class="hint" id="modeHint"></p>
+        </div>
+
+        <div class="field row">
+          <label class="check"><input type="checkbox" id="optInvert"><span data-i18n="optInvert"></span></label>
+          <label class="check"><input type="checkbox" id="optAssist" checked><span data-i18n="optAssist"></span></label>
+          <label class="check"><input type="checkbox" id="optCalm"><span data-i18n="optCalm"></span></label>
+          <label class="check"><input type="checkbox" id="optWarn" checked><span data-i18n="optWarn"></span></label>
+        </div>
+      </section>
+
+      <!-- Tab: aircraft -->
+      <section class="tab" data-panel="plane" hidden>
+        <div class="seg small-seg" role="radiogroup">
+          <label><input type="radio" name="acCat" value="all" checked><span data-i18n="acAll"></span></label>
+          <label><input type="radio" name="acCat" value="civil"><span data-i18n="acCivil"></span></label>
+          <label><input type="radio" name="acCat" value="commercial"><span data-i18n="acCommercial"></span></label>
+          <label><input type="radio" name="acCat" value="military"><span data-i18n="acMilitary"></span></label>
+          <label><input type="radio" name="acCat" value="historic"><span data-i18n="acHistoric"></span></label>
+          <label><input type="radio" name="acCat" value="mine"><span data-i18n="acMine"></span></label>
+        </div>
+        <input type="search" id="acSearch" class="ac-search" data-i18n-ph="acSearchPh" autocomplete="off">
+        <p id="acCount" class="hint"></p>
+        <div id="acGrid" class="ac-grid"></div>
+        <div class="actions">
+          <button id="hangarOpen" class="secondary" type="button" data-i18n="hangarOpen"></button>
+        </div>
+
+        <div id="hangar" class="hangar" hidden>
+          <h3 data-i18n="hangarTitle"></h3>
+          <p class="hint"><span data-i18n="hangarBase"></span>: <b id="hgBase"></b></p>
+          <div class="field">
+            <label for="hgName" data-i18n="buildName"></label>
+            <input id="hgName" type="text" maxlength="28" autocomplete="off">
+          </div>
+          <div class="slider"><label for="hgPower" data-i18n="modPower"></label><input id="hgPower" type="range" min="0.5" max="2" step="0.05"><output id="hgPowerOut"></output></div>
+          <div class="slider"><label for="hgWing" data-i18n="modWing"></label><input id="hgWing" type="range" min="0.7" max="1.4" step="0.05"><output id="hgWingOut"></output></div>
+          <div class="slider"><label for="hgAgility" data-i18n="modAgility"></label><input id="hgAgility" type="range" min="0.6" max="1.8" step="0.05"><output id="hgAgilityOut"></output></div>
+          <div class="colors">
+            <label><input id="hgColP" type="color"><span data-i18n="colPrimary"></span></label>
+            <label><input id="hgColS" type="color"><span data-i18n="colSecondary"></span></label>
+            <label><input id="hgColA" type="color"><span data-i18n="colAccent"></span></label>
+          </div>
+          <div id="hgStats" class="stats"></div>
+          <div class="actions">
+            <button id="hgDelete" class="ghost" type="button" data-i18n="hangarDelete"></button>
+            <button id="hgClose" class="ghost" type="button" data-i18n="hangarClose"></button>
+            <button id="hgSaveNew" class="secondary" type="button" data-i18n="hangarSaveNew"></button>
+            <button id="hgSave" class="primary" type="button" data-i18n="hangarSave"></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: settings -->
+      <section class="tab" data-panel="settings" hidden>
+        <h3><span data-i18n="mapSettings"></span> <span id="mapStatus" class="pill"></span></h3>
+        <p data-i18n-html="tokenIntro"></p>
+        <ol class="steps" data-i18n-html="tokenSteps"></ol>
+        <div class="field">
+          <label for="tokenInput" data-i18n="tokenLabel"></label>
+          <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="eyJhbGciOi...">
+        </div>
+        <div class="field row">
+          <label class="check"><input type="checkbox" id="optRemember" checked><span data-i18n="tokenRemember"></span></label>
+          <label class="check"><input type="checkbox" id="optGoogle"><span data-i18n="optGoogle"></span></label>
+        </div>
+        <p class="hint" data-i18n="tokenPrivacy"></p>
+        <div class="actions">
+          <button id="showWelcome" class="ghost small" type="button" data-i18n="showWelcome"></button>
+          <button id="forgetBtn" class="ghost" type="button" data-i18n="tokenForget"></button>
+          <button id="saveTokenBtn" class="secondary" type="button" data-i18n="tokenSave"></button>
+        </div>
+        <h3 data-i18n="controls"></h3>
+        <table class="keys"><tbody id="keysTable"></tbody></table>
+      </section>
+
+      <footer class="menu-foot">
+        <div class="chosen">
+          <span>📍 <b id="chosenPlace"></b></span>
+          <span>✈ <b id="chosenPlane"></b></span>
+        </div>
+        <div class="actions">
+          <button id="resumeBtn" class="secondary" type="button" hidden data-i18n="resume"></button>
+          <button id="startBtn" class="primary" type="button" data-i18n="start"></button>
+        </div>
+        <p id="touchNote" class="hint warn-text" hidden data-i18n="touchNote"></p>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Crash / finish result -->
+  <div id="result" class="overlay" hidden>
+    <div class="panel small-panel">
+      <h2 id="resTitle"></h2>
+      <p id="resText"></p>
+      <div class="actions">
+        <button id="resMenuBtn" class="ghost" type="button" data-i18n="menu"></button>
+        <button id="resRetryBtn" class="primary" type="button" data-i18n="retry"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
