@@ -1,0 +1,10 @@
+# Never commit tokens or local config
+.env
+*.local.js
+config.local.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
