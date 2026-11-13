@@ -72,7 +72,7 @@ const CH_ROUTE = [0, 0.16, 0.5, 0.7, 0.86, 1];
 const T0 = '2026-12-21T12:55:00Z', T1 = '2026-12-21T15:05:00Z';
 // Aircraft per chapter; chapter 2 runs through the century.
 const CENTURY = ['wright-flyer', 'bleriot-xi', 'sopwith-camel', 'spirit-st-louis', 'dc-3', 'spitfire-ix', 'constellation', 'b707-320b', 'concorde', 'b747-400', 'a380-800', 'hurjet'];
-const CH_PLANE = ['a320neo', null, 'b777-300er', 'cessna-172', 'p-51d'];
+const CH_PLANE = ['a320neo', null, 'b777-300er', 'cessna-172', 'hurjet'];
 
 // Catmull-Rom through the waypoints, then an arc-length table so speed is even.
 function crPoint(i, f) {
@@ -322,7 +322,8 @@ function boot() {
     ac = resolveAircraft(baseById(id));
     plane.build(ac);
     plane.gear = 0; plane.visible = true;
-    if (CENTURY.includes(id)) { const f = baseById(id).spec || {}; lastCentury = id; $('planeName').textContent = `${f.name}, ${f.year}`; }
+    lastCentury = id; // the launch link takes the aircraft on screen
+    if (CENTURY.includes(id)) { const f = baseById(id).spec || {}; $('planeName').textContent = `${f.name}, ${f.year}`; }
   }
   usePlane(CH_PLANE[0]);
 
@@ -384,13 +385,13 @@ function boot() {
     const sp = (ac.span || 20);
     const back = lerp(sp * 1.9 + 16, -(ac.base?.spec?.len || sp * 0.8) * 0.45, cam.nose);
     const endT = ch === 4 ? smooth(clamp(f * 1.6, 0, 1)) : 0; // last chapter: the plane drops low in the frame, under the words
-    const up = lerp(sp * 0.38 + 4, 1.2, cam.nose) + endT * sp * 0.55;
-    const side = lerp(Math.sin(now / 5200) * sp * (reduce ? 0 : 0.25), 0, cam.nose);
+    const up = lerp(sp * 0.38 + 4, 1.2, cam.nose) + endT * sp * 0.32;
+    const side = lerp(Math.sin(now / 5200) * sp * (reduce ? 0 : 0.25) * (1 - endT * 0.8), 0, cam.nose);
     const ch_ = Math.cos(cam.heading), sh_ = Math.sin(cam.heading);
     const dN = -ch_ * back - sh_ * side, dE = -sh_ * back + ch_ * side;
     const lat = p[0] + dN / 111320, lon = p[1] + dE / (111320 * Math.cos(p[0] * D2R));
     hpr.heading = cam.heading;
-    hpr.pitch = lerp(lerp(-0.13, 0.02, endT), -0.05, cam.nose);
+    hpr.pitch = lerp(lerp(-0.13, -0.03, endT), -0.05, cam.nose);
     hpr.roll = cam.roll * lerp(0.3, 0.55, cam.nose);
     scene.camera.setView({ destination: C.Cartesian3.fromDegrees(lon, lat, p[2] + bob + up), orientation: hpr });
 
