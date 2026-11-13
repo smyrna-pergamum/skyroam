@@ -15,7 +15,9 @@ import { MiniMap } from './minimap.js';
 import { TouchControls } from './touch.js';
 import { Warnings } from './warnings.js';
 import { Sky, TIME_MODES, TIME_SPEEDS } from './sky.js';
-import { Weather } from './weather.js';
+import { Weather, WX_MODES } from './weather.js';
+import { loadAirports, nearestAirports, runwayEnds, airportPlace, airportsLoaded } from './airports.js';
+import { Mission } from './missions.js';
 
 const $ = id => document.getElementById(id);
 const RING_COUNT = 12;
@@ -23,12 +25,12 @@ const PREFS_KEY = 'skyroam.prefs';
 const BEST_KEY = 'skyroam.best';
 
 const prefs = Object.assign(
-  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true, tod: 'auto', wx: 'live', tspeed: 1 },
+  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true, tod: 'auto', wx: 'live', tspeed: 1, windMan: false, windKmh: 30, windDir: 270 },
   readJSON(PREFS_KEY, {}),
 );
 const savePrefs = () => writeJSON(PREFS_KEY, prefs);
 
-// Launch links from the website: play.html?lat=..&lon=..&name=..&ac=..&hdg=..&alt=..&cam=..&lang=..&tod=..&tspeed=..&wx=..&fly=1
+// Launch links from the website: play.html?lat=..&lon=..&name=..&ac=..&hdg=..&alt=..&cam=..&lang=..&tod=..&tspeed=..&wx=..&wind=..&wdir=..&mode=..&ap=..&rwy=..&fly=1
 // Values are validated and only change where you start; nothing is sent anywhere.
 const launch = (() => {
   const q = new URLSearchParams(location.search);
@@ -37,7 +39,11 @@ const launch = (() => {
   if (['tr', 'en'].includes(q.get('lang'))) prefs.lang = q.get('lang');
   if (TIME_MODES.includes(q.get('tod'))) prefs.tod = q.get('tod');
   if (TIME_SPEEDS.includes(+q.get('tspeed'))) prefs.tspeed = +q.get('tspeed');
-  if (['live', 'clear'].includes(q.get('wx'))) prefs.wx = q.get('wx');
+  if (WX_MODES.includes(q.get('wx'))) prefs.wx = q.get('wx');
+  if (['free', 'rings', 'takeoff', 'landing'].includes(q.get('mode'))) prefs.mode = q.get('mode');
+  if (/^[A-Za-z0-9]{3,4}$/.test(q.get('ap') || '')) { out.ap = q.get('ap').toUpperCase(); out.rwy = (q.get('rwy') || '').toUpperCase().slice(0, 4); }
+  const wk = num('wind', 0, 200);
+  if (wk !== null) { prefs.windMan = true; prefs.windKmh = Math.round(wk); prefs.windDir = Math.round(num('wdir', 0, 360) ?? prefs.windDir ?? 270) % 360; }
   const lat = num('lat', -85, 85), lon = num('lon', -180, 180);
   if (lat !== null && lon !== null) {
     const name = (q.get('name') || '').replace(/[<>]/g, '').slice(0, 80) || `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
@@ -73,6 +79,7 @@ viewer.camera.frustum.near = 0.5;
 const sky = new Sky(viewer);
 const weather = new Weather(viewer, $('wx'));
 weather.setMode(prefs.wx);
+weather.setManualWind(prefs.windMan ? prefs.windKmh : NaN, prefs.windDir);
 weather.onChange = () => updateWxLabel();
 function updateWxLabel() { $('hWx').textContent = weather.label(getLang()); }
 const TOD_KEY = { auto: 'todAuto', sunrise: 'todSunrise', day: 'todDay', dusk: 'todDusk', night: 'todNight' };
@@ -183,6 +190,7 @@ let camMode = 'chase';          // 'chase' | 'cockpit' (interior) | 'nose'
 const CAM_MODES = ['chase', 'cockpit', 'nose'];
 let camPos = null;
 let gameMode = 'free';
+let mission = null; // runway start, take-off or landing mission
 let place = null;
 let courseStart = 0, courseTime = 0;
 let lastFrame = performance.now();
@@ -234,28 +242,65 @@ async function startFlight() {
   menu.closeHangar(false);
   setAircraft(menu.getAircraft());
   place = menu.getPlace();
-  gameMode = prefs.mode === 'rings' ? 'rings' : 'free';
-  const st = startFromPlace(place);
-  st.alt += ac.startBonusAlt;
-
-  state = createFlight(st, ac.phys);
+  gameMode = ['rings', 'takeoff', 'landing'].includes(prefs.mode) ? prefs.mode : 'free';
+  mission?.removeLights(); mission = null;
+  // airports: a launch link naming one, or the nearest airport to a city for the missions
+  if (launch.ap) {
+    try {
+      await loadAirports();
+      const ap = airportsLoaded().find(a => a.icao === launch.ap || a.iata === launch.ap);
+      if (ap) { const ends = runwayEnds(ap); prefs.pick.airport = airportPlace(ap, ends.find(e => e.id === launch.rwy) || ends[0]); prefs.pick.cat = 'airport'; place = menu.getPlace(); }
+    } catch { /* stay at the chosen place */ }
+    launch.ap = null;
+  }
+  if (place.kind !== 'airport' && (gameMode === 'takeoff' || gameMode === 'landing')) {
+    try {
+      await loadAirports();
+      const [ap] = nearestAirports(place.lat, place.lon, 1);
+      if (ap) place = airportPlace(ap, runwayEnds(ap)[0]);
+    } catch { gameMode = 'free'; }
+  }
   asyncGround = { h: undefined, busy: false, last: 0 };
-  const g = await terrainHeight(st.lat, st.lon);
-  if (g !== undefined) {
-    state.h = Math.max(state.h, g + 300 + ac.startBonusAlt);
-    state.ground = g;
+  let st;
+  if (place.kind === 'airport' && gameMode !== 'rings') {
+    const rwy = place.airport.rwy;
+    mission = new Mission(viewer, gameMode === 'free' ? 'ground' : gameMode, rwy, ac.phys);
+    const [g0, g1] = await Promise.all([terrainHeight(rwy.lat, rwy.lon), terrainHeight(rwy.endLat, rwy.endLon)]);
+    const e0 = g0 ?? (mapMode === 'lite' ? 0 : rwy.elev), e1 = g1 ?? (mapMode === 'lite' ? 0 : rwy.endElev);
+    mission.addLights(e0, e1);
+    st = mission.start();
+    state = createFlight(st, ac.phys);
+    if (!st.air) {
+      Object.assign(state, { onGround: true, speed: 0, throttle: 0, pitch: 0, h: e0 + ac.phys.gearH, ground: e0, agl: 0 });
+    } else {
+      // on the glide path at approach speed, power set to hold it
+      const v = mission.approachSpeed();
+      Object.assign(state, { speed: v, pitch: -0.052, throttle: Math.min(1, Math.max(0.05, (ac.phys.drag * v * v - 9.81 * Math.sin(0.052)) / ac.phys.thrust)) });
+      if (ac.phys.engine === 'none') state.throttle = 0;
+    }
+  } else {
+    st = startFromPlace(place);
+    st.alt += ac.startBonusAlt;
+    state = createFlight(st, ac.phys);
+    const g = await terrainHeight(st.lat, st.lon);
+    if (g !== undefined) {
+      state.h = Math.max(state.h, g + 300 + ac.startBonusAlt);
+      state.ground = g;
+    }
   }
   snapshot(state, prevSnap); snapshot(state, curSnap);
   accumulator = 0;
   camPos = null; // hard cut, no camera slingshot after respawn
   feel.reset();
   minimap.forget();
-  plane.gear = gearCtl.target = gearCtl.announced = state.onGround ? 1 : 0;
-  gearCtl.manualUntil = 0;
+  plane.gear = gearCtl.target = gearCtl.announced = state.onGround || mission?.type === 'landing' ? 1 : 0;
+  gearCtl.manualUntil = mission?.type === 'landing' ? performance.now() + 15 * 60e3 : 0; // gear stays down on the approach
   input.clearEdges();
 
   course.clear();
   $('ringPanel').hidden = gameMode !== 'rings';
+  $('missionPanel').hidden = !mission;
+  if (mission) toast(t({ ground: 'missGround', takeoff: 'missTakeoffGo', landing: 'missLandingGo' }[mission.type], { r: mission.rwy.id }), 3500);
   if (gameMode === 'rings') {
     await course.build(state, RING_COUNT, mapMode !== 'lite');
     courseStart = performance.now();
@@ -278,7 +323,7 @@ function setPhase(p) {
   $('hud').hidden = p === 'menu';
   plane.visible = p === 'menu' || camMode === 'chase';
   applyCamView();
-  if (p === 'menu') { course.clear(); setPreviewPlace(menu.getPlace()); }
+  if (p === 'menu') { course.clear(); mission?.removeLights(); mission = null; $('missionPanel').hidden = true; setPreviewPlace(menu.getPlace()); }
   lastFrame = performance.now();
 }
 
@@ -294,6 +339,15 @@ function onCrash(reason = 'crashGround') {
   $('resTitle').textContent = t('crashTitle');
   $('resText').textContent = `${t(reason)} ${t('crashTip')}`;
   setPhase('crashed');
+}
+
+function onMission(done) {
+  sound.chime(done.ok);
+  const v = done.vals;
+  const fmt = { t: v.t?.toFixed(0), dev: v.dev?.toFixed(1), score: v.score, sink: v.sink?.toFixed(1), aim: v.aim === undefined ? '' : `${v.aim > 0 ? '+' : ''}${Math.round(v.aim)}`, cl: v.cl?.toFixed(1) };
+  $('resTitle').textContent = t(done.ok ? 'missOkTitle' : 'missFailTitle');
+  $('resText').textContent = t(done.key, fmt);
+  setPhase('finished');
 }
 
 function onFinish() {
@@ -381,6 +435,21 @@ const hud = {
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 let hudTick = 0;
 
+// Mission panel: runway, distance, glide path and centreline guidance
+function updateMissionPanel(s) {
+  const g = mission.guidance(s), r = mission.rwy;
+  const lr = c => (Math.abs(c) < 3 ? t('mCentre') : `${c > 0 ? '◀' : '▶'} ${Math.round(Math.abs(c))} m`);
+  $('mTitle').textContent = `${t({ ground: 'mGround', takeoff: 'mTakeoff', landing: 'mLanding' }[mission.type])} · ${t('runway')} ${r.id}`;
+  if (mission.type === 'landing' && !s.onGround) {
+    const gs = Math.abs(g.gsDev) < 8 ? t('mOnPath') : `${g.gsDev > 0 ? '▼' : '▲'} ${Math.round(Math.abs(g.gsDev))} m`;
+    $('mLine1').textContent = `${(Math.max(0, g.toThr) / 1000).toFixed(1)} km · ${t('mGlide')} ${gs}`;
+    $('mLine2').textContent = `${t('mCl')} ${lr(g.cross)} · ${t('mVapp')} ${Math.round(mission.approachSpeed() * 3.6)} km/h`;
+  } else {
+    $('mLine1').textContent = s.onGround ? `Vr ${Math.round(ac.phys.vRotate * 3.6)} km/h · ${Math.max(0, Math.round(r.len - g.along))} m ${t('mLeft')}` : `${Math.round(s.agl)} m AGL`;
+    $('mLine2').textContent = `${t('mCl')} ${lr(g.cross)}`;
+  }
+}
+
 function updateHud(s, d) {
   const rollDeg = d.roll * 180 / Math.PI, pitchDeg = d.pitch * 180 / Math.PI;
   hud.horizon.style.transform = `rotate(${-rollDeg}deg) translateY(${pitchDeg * 4}px)`;
@@ -401,6 +470,7 @@ function updateHud(s, d) {
   hud.warn.hidden = !warn;
   hud.warn.textContent = warn;
 
+  if (mission) updateMissionPanel(s);
   if (gameMode === 'rings' && course.active) {
     hud.rCount.textContent = `${Math.min(course.index + 1, course.rings.length)}/${course.rings.length}`;
     hud.rTime.textContent = fmtTime(courseTime);
@@ -504,7 +574,7 @@ function skyFrame(dt) {
   const p = skyPoint();
   if (!p) return;
   if ((skyTick++ % 10) === 0) {
-    dark = sky.update(p.lon, p.lat, weather.now.live ? weather.now.cloud : 0);
+    dark = sky.update(p.lon, p.lat, weather.now.live ? weather.now.cloud * (weather.aboveDeck ? 0.1 : 1) : 0); // clear sun above the overcast
     document.body.classList.toggle('is-night', dark > 0.6);
   }
   if ((skyTick % 600) === 0 && phase === 'flying') weather.refresh(p.lat, p.lon);
@@ -516,7 +586,7 @@ const hClock = $('hClock'), hWind = $('hWind'), hWindArrow = $('hWindArrow'), hW
 function updateClockWind(p) {
   hClock.textContent = `${t('hudLocal')} ${sky.localTime(p.lon, weather.utcOffset)}${sky.speed > 1 ? ` (×${sky.speed})` : ''}`;
   const w = weather.windAt(state && phase !== 'menu' ? state.agl : 500);
-  const on = weather.now.live && w.speed >= 0.5;
+  const on = (weather.now.live || weather.manual) && w.speed >= 0.5;
   hWind.hidden = !on;
   if (!on) return;
   hWindArrow.style.transform = `rotate(${((w.to - p.hdg) * 180 / Math.PI).toFixed(0)}deg)`;
@@ -526,6 +596,7 @@ function applySkyPrefs() {
   const p = skyPoint();
   if (p) sky.setMode(prefs.tod, p.lon, p.lat, prefs.tspeed);
   if (weather.mode !== prefs.wx) { weather.setMode(prefs.wx); if (p) weather.refresh(p.lat, p.lon, true); }
+  weather.setManualWind(prefs.windMan ? prefs.windKmh : NaN, prefs.windDir);
   updateWxLabel();
 }
 
@@ -592,6 +663,10 @@ scene.preUpdate.addEventListener(() => {
     if (state.landedEvent) feel.addTrauma(Math.min(0.6, 0.15 + Math.abs(state.landedEvent.sink) * 0.08));
     if (state.landedEvent) toast(state.landedEvent.sink > -1.5 ? t('landedSoft') : t('landed'));
     if (state.crashed) break;
+    if (mission) {
+      mission.update(state, FIXED_DT);
+      if (mission.done) { onMission(mission.done); break; }
+    }
 
     if (gameMode === 'rings' && course.active) {
       C3.fromRadians(state.lon, state.lat, state.h, Cesium.Ellipsoid.WGS84, planePos);
@@ -620,6 +695,14 @@ scene.preUpdate.addEventListener(() => {
   updateLever();
   if (camMode === 'cockpit') {
     const view = Object.assign({}, state, drawSnap);
+    // what lands on the windscreen: rain or snow below the cloud deck, moisture inside cloud
+    const wn = weather.now, falling = wn.live && !weather.aboveDeck && ['rain', 'snow', 'storm'].includes(wn.kind);
+    cockpit.wet = {
+      kind: falling ? (wn.kind === 'snow' ? 'snow' : 'rain') : weather.inCloud > 0.3 ? 'mist' : null,
+      amount: Math.min(1, 0.3 + (wn.rain || 0.4) / 4) * (wn.kind === 'storm' ? 1.3 : 1), dark,
+    };
+    cockpit.wind = weather.windAt(state.agl);
+    cockpit.gear = plane.gear;
     cockpit.draw(view, input.axes, dt, gameMode === 'rings' && course.active ? course.navInfo(state) : null);
   }
   sound.update(state.throttle, state.speed, phase === 'flying', ac.phys.engine);
@@ -639,10 +722,14 @@ setupMap().then(() => {
     if (launch.shot) document.body.classList.add('shot');
     startFlight();
     // browsers only allow sound after a tap or key press
-    const wake = () => sound.start();
-    addEventListener('pointerdown', wake, { once: true });
-    addEventListener('keydown', wake, { once: true });
+    // (keep trying until the browser really lets the audio run)
+    const wake = () => {
+      sound.start();
+      setTimeout(() => { if (sound.ctx?.state === 'running') { removeEventListener('pointerdown', wake); removeEventListener('keydown', wake); } }, 50);
+    };
+    addEventListener('pointerdown', wake);
+    addEventListener('keydown', wake);
   }
 });
 
-window.skyroam = { viewer, sky, weather, get state() { return state; }, get aircraft() { return ac; } };
+window.skyroam = { viewer, sky, weather, sound, get state() { return state; }, get aircraft() { return ac; }, get mission() { return mission; } };

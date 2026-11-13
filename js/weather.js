@@ -22,6 +22,18 @@ const CODES = {
   95: ['Gök gürültülü fırtına', 'Thunderstorm', 'storm'], 96: ['Dolulu fırtına', 'Thunderstorm, hail', 'storm'], 99: ['Dolulu fırtına', 'Thunderstorm, hail', 'storm'],
 };
 
+// Weather the player can pick instead of the live weather (wind in m/s, from the south-west)
+export const WX_MODES = ['live', 'clear', 'cloudy', 'overcast', 'rain', 'snow', 'storm', 'fog'];
+const PRESETS = {
+  clear:    { code: 0,  cloud: 0.05, vis: 40000, wind: 3,   wind180: 6,  gust: 4,  rain: 0 },
+  cloudy:   { code: 2,  cloud: 0.5,  vis: 25000, wind: 5,   wind180: 9,  gust: 8,  rain: 0 },
+  overcast: { code: 3,  cloud: 1,    vis: 15000, wind: 6,   wind180: 11, gust: 10, rain: 0 },
+  rain:     { code: 63, cloud: 0.95, vis: 6000,  wind: 7,   wind180: 12, gust: 12, rain: 2.5 },
+  snow:     { code: 73, cloud: 0.95, vis: 2500,  wind: 5,   wind180: 9,  gust: 9,  rain: 1.5, temp: -3 },
+  storm:    { code: 95, cloud: 1,    vis: 3500,  wind: 11,  wind180: 18, gust: 24, rain: 6 },
+  fog:      { code: 45, cloud: 0.3,  vis: 400,   wind: 1.5, wind180: 3,  gust: 2,  rain: 0 },
+};
+
 export const CLEAR = { code: 0, kind: 'clear', temp: null, cloud: 0, vis: 30000, wind: 0, dir: 0, gust: 0, wind180: 0, dir180: 0, rain: 0, live: false };
 
 // smoothed random signal (Ornstein-Uhlenbeck): bumps, never jitter
@@ -29,6 +41,45 @@ function ou(state, dt, tau) {
   state.v += (-state.v / tau) * dt + Math.sqrt(2 * dt / tau) * (Math.random() * 2 - 1) * 1.7;
   return state.v;
 }
+
+
+// ------------------------------------------------------------------ overcast deck
+// A solid layer of cloud when the sky is (nearly) fully covered: a grey ceiling from below, a sunlit
+// carpet of cloud tops from above, white-out inside. Two curved discs that follow the aircraft.
+const DECK_SRC = `
+float dkHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float dkNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(dkHash(i), dkHash(i + vec2(1.0, 0.0)), f.x), mix(dkHash(i + vec2(0.0, 1.0)), dkHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float dkFbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * dkNoise(p); p = p * 2.03 + 7.1; a *= 0.5; } return v; }
+czm_material czm_getMaterial(czm_materialInput materialInput) {
+  czm_material m = czm_getDefaultMaterial(materialInput);
+  vec2 st = materialInput.st;
+  float n = dkFbm(st * scale);
+  float billow = dkFbm(st * scale * 3.7 + n * 2.0);
+  m.diffuse = color.rgb * (0.72 + 0.22 * n + 0.14 * billow);
+  float r = length(st - 0.5) * 2.0;
+  m.alpha = color.a * (1.0 - smoothstep(0.72, 1.0, r));
+  return m;
+}`;
+
+function deckAppearance(top) {
+  const material = new Cesium.Material({
+    fabric: { uniforms: { color: new Cesium.Color(1, 1, 1, 1), scale: 160.0 }, source: DECK_SRC },
+    translucent: true,
+  });
+  return new Cesium.MaterialAppearance({
+    material, flat: true, translucent: true, closed: false, faceForward: false,
+    renderState: {
+      cull: { enabled: true, face: top ? Cesium.CullFace.BACK : Cesium.CullFace.FRONT },
+      depthTest: { enabled: true }, depthMask: false, blending: Cesium.BlendingState.ALPHA_BLEND,
+    },
+  });
+}
+
+// cloud base and top above the ground (m) for a fully covered sky
+const DECK_LAYERS = { cloud: [1100, 1800], rain: [850, 1900], snow: [800, 1700], storm: [750, 2900], fog: [250, 900] };
 
 export class Weather {
   constructor(viewer, canvas) {
@@ -45,8 +96,13 @@ export class Weather {
     this.clouds = this.scene.primitives.add(new Cesium.CloudCollection({ noiseDetail: 16 }));
     this.drops = [];
     this.flash = 0;
+    this.deck = null;           // { lon, lat, base, top, prims } in metres above the ellipsoid
+    this.inCloud = 0;           // 0..1 white-out inside the deck
+    this.aboveDeck = false;
+    this._deckApp = null;
     this.baseFog = this.scene.fog.density;
     this.turb = { roll: { v: 0 }, pitch: { v: 0 }, yaw: { v: 0 } };
+    this.manual = null;        // { speed m/s, from deg } when the player sets the wind
     this.wind = { n: 0, e: 0, speed: 0, to: 0 }; // at the aircraft, m/s, direction it blows to (rad)
     this._dirty = false;
     this._cloudDark = -1;
@@ -63,9 +119,22 @@ export class Weather {
   }
 
   setMode(mode) {
-    this.mode = mode === 'clear' ? 'clear' : 'live';
+    this.mode = WX_MODES.includes(mode) ? mode : 'live';
     this.last = null;
-    if (this.mode === 'clear') this.apply({ ...CLEAR });
+    if (this.mode === 'live') return;
+    const p = PRESETS[this.mode];
+    this.apply({ ...CLEAR, ...p, kind: CODES[p.code][2], temp: p.temp ?? null, dir: 225, dir180: 240, live: true, preset: true });
+  }
+
+  /** Wind set by hand (km/h, the direction it comes from in degrees), or null for the weather's own. */
+  setManualWind(kmh, fromDeg) {
+    this.manual = Number.isFinite(kmh) ? { speed: Math.max(0, kmh) / 3.6, from: ((fromDeg % 360) + 360) % 360 } : null;
+  }
+
+  /** Gusts above the mean wind (m/s), which drive the turbulence. */
+  gustExcess() {
+    if (this.manual) return this.manual.speed * 0.35;
+    return Math.max(0, this.now.gust - this.now.wind);
   }
 
   /** Fetch again when the aircraft has moved 40 km or 15 minutes have passed. */
@@ -104,6 +173,7 @@ export class Weather {
     this._cloudCount = w.kind === 'fog' ? 0 : Math.round(w.cloud * MAX_CLOUDS);
     this.drops = [];
     this._dirty = true;
+    this.removeDeck();
     this.onChange?.(w);
   }
 
@@ -118,9 +188,16 @@ export class Weather {
    *  then stronger with height (about +60 % by 3 km). Direction veers between the two. */
   windAt(agl) {
     const w = this.now;
-    if (!w.live) { this.wind.n = this.wind.e = this.wind.speed = 0; return this.wind; }
     const h = Math.max(0, Number.isFinite(agl) ? agl : 500);
     const k = Math.min(1, h / 180);
+    if (this.manual) {
+      // the set speed holds from ~180 m up; slower near the ground
+      const m = this.manual, to = (m.from + 180) * D2R, speed = m.speed * (0.65 + 0.35 * k);
+      this.wind.speed = speed; this.wind.to = to;
+      this.wind.n = Math.cos(to) * speed; this.wind.e = Math.sin(to) * speed;
+      return this.wind;
+    }
+    if (!w.live) { this.wind.n = this.wind.e = this.wind.speed = 0; return this.wind; }
     let speed = w.wind + (w.wind180 - w.wind) * k;
     if (h > 180) speed *= 1 + Math.min(1, (h - 180) / 2800) * 0.6;
     let dd = ((w.dir180 - w.dir + 540) % 360) - 180;              // shortest turn between the two
@@ -136,7 +213,7 @@ export class Weather {
    *  Call once per physics step. */
   stepFlight(s, dt, sens = 1) {
     const w = this.now;
-    if (!w.live || s.crashed) return;
+    if ((!w.live && !this.manual) || s.crashed) return;
     const v = this.windAt(s.agl);
     if (s.onGround) {
       // on the runway the nose weathervanes a little into a crosswind; the wheels resist most of it
@@ -148,7 +225,7 @@ export class Weather {
     // turbulence intensity 0..~1.5
     const agl = Number.isFinite(s.agl) ? s.agl : 1000;
     const nearGround = 1 + Math.max(0, 1 - agl / 600) * 0.8;
-    let I = (Math.max(0, w.gust - w.wind) / 14 + v.speed / 90) * nearGround;
+    let I = (this.gustExcess() / 14 + v.speed / 90) * nearGround;
     if (w.kind === 'storm') I *= 2; else if (w.kind === 'rain' || w.kind === 'snow') I *= 1.25;
     I = Math.min(1, I) * Math.min(1.5, sens);
     if (I < 0.03) return;
@@ -160,8 +237,10 @@ export class Weather {
 
   /** Per frame: keep cumulus around the aircraft and draw rain or snow. */
   frame(dt, lonDeg, latDeg, h, heading, speed, ground, dark, showFx) {
+    this.updateDeck(lonDeg, latDeg, ground, dark);
     const want = this._cloudCount || 0;
-    const base = (Number.isFinite(ground) ? ground : 0) + (this.now.cloud > 0.75 ? 900 : 1500);
+    // with an overcast deck the cumulus are the bumps rising out of its top
+    const base = this.deck ? this.deck.top - 260 : (Number.isFinite(ground) ? ground : 0) + (this.now.cloud > 0.75 ? 900 : 1500);
     // add at most two clouds per frame, never on top of the camera
     if (want && this.clouds.length < want) {
       for (let i = 0; i < 2 && this.clouds.length < want; i++) this.addCloud(lonDeg, latDeg, base, heading, this.clouds.length > want * 0.5);
@@ -178,6 +257,59 @@ export class Weather {
       for (let i = 0; i < this.clouds.length; i++) this.clouds.get(i).brightness = 1 - dark * 0.8;
     }
     this.drawPrecip(dt, speed, dark, showFx);
+  }
+
+  /** Overcast: keep a deck of cloud around the aircraft (rebuilt every ~25 km). */
+  updateDeck(lonDeg, latDeg, ground, dark) {
+    const w = this.now;
+    const layer = w.live && w.cloud >= 0.85 ? DECK_LAYERS[w.kind] || DECK_LAYERS.cloud : null;
+    if (!layer) { this.removeDeck(); this.inCloud = 0; this.aboveDeck = false; return; }
+    const d = this.deck;
+    const far = d && Math.hypot(latDeg - d.lat, (lonDeg - d.lon) * Math.cos(latDeg * D2R)) * 111 > 25;
+    if (!d || far) {
+      let g = Number.isFinite(ground) ? ground : this.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(lonDeg, latDeg));
+      g = Math.max(0, Number.isFinite(g) ? g : 0);
+      // keep the same layer heights while flying on (no jumps over hills)
+      const base = d && far ? d.base : g + layer[0], top = d && far ? d.top : g + layer[1];
+      this.buildDeck(lonDeg, latDeg, base, top);
+    }
+    // colour: bright tops in the sun, grey underside, both dim at night
+    const k = 1 - dark * 0.85;
+    if (Math.abs(k - (this.deck.k ?? -1)) > 0.02) {
+      this.deck.k = k;
+      const [topApp, botApp] = this._deckApp;
+      topApp.material.uniforms.color = new Cesium.Color(0.97 * k, 0.97 * k, 0.99 * k, 1);
+      const gk = (w.kind === 'storm' ? 0.42 : w.kind === 'rain' || w.kind === 'snow' ? 0.55 : 0.66) * k;
+      botApp.material.uniforms.color = new Cesium.Color(gk, gk * 1.02, gk * 1.06, 1);
+    }
+    // white-out inside the layer, judged at the camera
+    const camH = this.scene.camera.positionCartographic.height;
+    const { base, top } = this.deck, edge = 90;
+    this.inCloud = camH <= base || camH >= top ? 0 : Math.min(1, (camH - base) / edge, (top - camH) / edge);
+    this.aboveDeck = camH >= top;
+  }
+
+  buildDeck(lonDeg, latDeg, base, top) {
+    this.removeDeck(true);
+    if (!this._deckApp) this._deckApp = [deckAppearance(true), deckAppearance(false)];
+    const center = Cesium.Cartesian3.fromDegrees(lonDeg, latDeg);
+    const disc = (h, app) => this.scene.primitives.add(new Cesium.Primitive({
+      geometryInstances: new Cesium.GeometryInstance({
+        geometry: new Cesium.EllipseGeometry({
+          center, semiMajorAxis: 160000, semiMinorAxis: 160000, height: h,
+          granularity: 0.0008, vertexFormat: Cesium.MaterialAppearance.MaterialSupport.TEXTURED.vertexFormat,
+        }),
+      }),
+      appearance: app, asynchronous: false,
+    }));
+    this.deck = { lon: lonDeg, lat: latDeg, base, top, k: this.deck?.k, prims: [disc(top, this._deckApp[0]), disc(base, this._deckApp[1])] };
+    this.deck.k = -1;
+  }
+
+  removeDeck() {
+    if (!this.deck) return;
+    for (const p of this.deck.prims) this.scene.primitives.remove(p);
+    this.deck = null;
   }
 
   cloudPos(lonDeg, latDeg, base, heading, ahead) {
@@ -202,12 +334,20 @@ export class Weather {
     const ctx = this.ctx, W = innerWidth, H = innerHeight;
     const w = this.now;
     const kind = w.kind === 'storm' ? 'rain' : w.kind;
-    if (!show || !w.live || (kind !== 'rain' && kind !== 'snow')) {
+    const fog = this.inCloud > 0.01;
+    const falling = show && w.live && (kind === 'rain' || kind === 'snow') && !this.aboveDeck;
+    if (!falling && !fog) {
       if (this._dirty) { ctx.clearRect(0, 0, W, H); this._dirty = false; }
       return;
     }
     ctx.clearRect(0, 0, W, H);
     this._dirty = true;
+    if (fog) {
+      const g = Math.round(205 * (1 - dark * 0.8));
+      ctx.fillStyle = `rgba(${g},${g},${Math.min(255, g + 8)},${(0.97 * this.inCloud).toFixed(3)})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    if (!falling) return;
     const amount = Math.min(1, 0.25 + (w.rain || 0.4) / 4) * (w.kind === 'storm' ? 1.3 : 1);
     const n = Math.round((kind === 'snow' ? 420 : 340) * amount * Math.min(1.4, W / 1000));
     while (this.drops.length < n) this.drops.push({ x: Math.random() * W, y: Math.random() * H, z: 0.4 + Math.random() * 0.6 });

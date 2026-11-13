@@ -43,6 +43,12 @@
       <div class="reticle"></div>
     </div>
 
+    <div id="missionPanel" class="hud-right glass" hidden>
+      <div class="ring-count" id="mTitle"></div>
+      <div class="mis-line" id="mLine1"></div>
+      <div class="mis-line" id="mLine2"></div>
+    </div>
+
     <div id="ringPanel" class="hud-right glass" hidden>
       <div class="ring-count"><span data-i18n="hudRing"></span> <b id="rCount">0/0</b></div>
       <div class="ring-time" id="rTime">0:00.0</div>
@@ -124,6 +130,7 @@
       <section class="tab" data-panel="fly">
         <div class="seg small-seg" role="radiogroup">
           <label><input type="radio" name="placeCat" value="city" checked><span data-i18n="catCity"></span></label>
+          <label><input type="radio" name="placeCat" value="airport"><span data-i18n="catAirport"></span></label>
           <label><input type="radio" name="placeCat" value="historic"><span data-i18n="catHistoric"></span></label>
           <label><input type="radio" name="placeCat" value="nature"><span data-i18n="catNature"></span></label>
           <label><input type="radio" name="placeCat" value="search"><span data-i18n="catSearch"></span></label>
@@ -134,6 +141,16 @@
           <div class="field"><label for="contSel" data-i18n="continent"></label><select id="contSel"></select></div>
           <div class="field"><label for="countrySel" data-i18n="country"></label><select id="countrySel"></select></div>
           <div class="field"><label for="citySel" data-i18n="city"></label><select id="citySel"></select></div>
+        </div>
+        <div class="picker" data-pick="airport" hidden>
+          <div class="field search-row">
+            <input id="apInput" type="text" autocomplete="off" data-i18n-ph="apPh">
+            <button id="apBtn" class="secondary" type="button" data-i18n="searchBtn"></button>
+          </div>
+          <p class="hint" id="apNote"></p>
+          <div id="apResults" class="results"></div>
+          <div class="field" id="rwyField" hidden><label for="rwySel" data-i18n="runway"></label><select id="rwySel"></select></div>
+          <p class="hint" data-i18n="apHint"></p>
         </div>
         <div class="picker" data-pick="historic" hidden>
           <div class="field"><label for="histSel" data-i18n="catHistoric"></label><select id="histSel"></select></div>
@@ -163,9 +180,11 @@
 
         <div class="field">
           <span class="label" data-i18n="mode"></span>
-          <div class="seg" role="radiogroup">
+          <div class="seg wrap" role="radiogroup">
             <label><input type="radio" name="mode" value="free" checked><span data-i18n="modeFree"></span></label>
             <label><input type="radio" name="mode" value="rings"><span data-i18n="modeRings"></span></label>
+            <label><input type="radio" name="mode" value="takeoff"><span data-i18n="modeTakeoff"></span></label>
+            <label><input type="radio" name="mode" value="landing"><span data-i18n="modeLanding"></span></label>
           </div>
           <p class="hint" id="modeHint"></p>
         </div>
@@ -183,11 +202,22 @@
 
         <div class="field">
           <span class="label" data-i18n="wx"></span>
-          <div class="seg" role="radiogroup">
+          <div class="seg wrap" role="radiogroup">
             <label><input type="radio" name="wx" value="live" checked><span data-i18n="wxLive"></span></label>
             <label><input type="radio" name="wx" value="clear"><span data-i18n="wxClear"></span></label>
+            <label><input type="radio" name="wx" value="cloudy"><span data-i18n="wxCloudy"></span></label>
+            <label><input type="radio" name="wx" value="overcast"><span data-i18n="wxOvercast"></span></label>
+            <label><input type="radio" name="wx" value="rain"><span data-i18n="wxRain"></span></label>
+            <label><input type="radio" name="wx" value="snow"><span data-i18n="wxSnow"></span></label>
+            <label><input type="radio" name="wx" value="storm"><span data-i18n="wxStorm"></span></label>
+            <label><input type="radio" name="wx" value="fog"><span data-i18n="wxFog"></span></label>
           </div>
           <p class="hint" data-i18n="wxHint"></p>
+          <label class="check wind-check"><input type="checkbox" id="optWindMan"><span data-i18n="windMan"></span></label>
+          <div id="windBox" hidden>
+            <div class="slider"><label for="windKmh" data-i18n="windSpeed"></label><input id="windKmh" type="range" min="0" max="150" step="5"><output id="windKmhOut"></output></div>
+            <div class="slider"><label for="windDir" data-i18n="windDir"></label><input id="windDir" type="range" min="0" max="350" step="10"><output id="windDirOut"></output></div>
+          </div>
         </div>
 
         <div class="field">

@@ -38,7 +38,10 @@ play.html?fly=1&lat=41.04&lon=29.02&name=Istanbul&ac=a320neo&hdg=20&alt=700&cam=
 | `lang` | `tr` or `en` |
 | `tod` | time of day: `auto` (real local time at the place), `sunrise`, `day`, `dusk` or `night` |
 | `tspeed` | how fast time runs: `1` (real), `60` (1 min = 1 hour) or `600` (1 min = 10 hours) |
-| `wx` | weather: `live` or `clear` |
+| `wx` | weather: `live`, `clear`, `cloudy`, `overcast`, `rain`, `snow`, `storm` or `fog` |
+| `wind`, `wdir` | wind set by hand: speed in km/h (0–200) and the direction it blows from in degrees |
+| `mode` | `free`, `rings`, `takeoff` or `landing` |
+| `ap`, `rwy` | start at an airport (ICAO or IATA code, e.g. `LTFM` or `IST`) on a runway (e.g. `35L`); without `rwy` the longest runway is used |
 | `fly=1` | skip the menu and take off at once (without it, the menu opens with these choices selected) |
 
 Values are checked and only change where you start; the address bar is cleaned after loading.
@@ -61,12 +64,20 @@ Values are checked and only change where you start; the address bar is cleaned a
   - 22 natural wonders (Cappadocia, Everest, Matterhorn, Grand Canyon, Fjords…)
   - **Search** for any city, town or village, or take off from your own location
   - **Coordinates**: type or paste latitude/longitude (decimal or 41°00′29″N), with optional heading and altitude
+  - **Airports**: 1,100+ large airports worldwide and every Turkish airport with scheduled flights, with their real runways ([OurAirports](https://ourairports.com/data/) data, bundled, searched offline by city, name or code). With no search typed, the airports nearest the chosen city are listed. You start at the runway threshold with the engine idle; pick the runway in the menu.
 - **Free flight** and a timed **ring course** (best times saved per place and aircraft)
+- **Take-off and landing missions** at real airports (with a city chosen, its nearest airport is used):
+  - Take-off: from the threshold, stay on the centreline, rotate and climb to 120 m; scored on time and centreline deviation
+  - Landing: start 9 km out on a 3° glide path; the HUD shows distance, glide path and centreline deviation, and PAPI lights beside the runway turn white and red like the real ones. Touch down on the runway, then brake to a stop: scored out of 100 for a soft touchdown, the aim point and the centreline
+  - Runway edge, threshold and end lights for night landings
+  - **Kalkış ve iniş görevleri**: gerçek havalimanlarında. Kalkışta merkez hattında kalıp 120 m'ye tırman; inişte 9 km uzaktan 3° süzülüş yolunda gel, PAPI ışıklarıyla yolu koru, piste yumuşak in ve dur. Puan teker koyma hızına, hedef noktaya ve merkez hattına göre verilir.
 - Arcade flight model: stalls, coordinated turns, landing and crashing, fixed 120 Hz physics
-- **Cockpit interior** with live instruments, different per aircraft class:
-  - analog six-pack, engine gauges, radios and a moving yoke (props)
-  - glass cockpit with PFD, ND, engine display and autopilot panel (jets, airliners)
-  - green HUD, MFDs and a moving stick (jet fighter)
+- **Cockpit interior** with live instruments, different per aircraft class, modelled on real cockpits:
+  - analog six-pack, avionics stack (COM/NAV, GPS, transponder), engine gauges, switch row, throttle and mixture knobs and a moving yoke (light props)
+  - airliner glass cockpit seen from the captain's seat: overhead panel, glareshield with autopilot panel, PFD with mode annunciator and speed trend, ND with wind, engine display (N1/EGT, or torque/prop rpm for turboprops), thrust levers that move with the throttle, and two moving yokes
+  - fighter: HUD on a combiner glass with flight path marker, up-front control with data display, two MFDs with option buttons, standby gauges, side stick and throttle
+  - the static parts are drawn once and cached, so the detailed cockpits cost no frame rate
+  - **Rain and snow on the windscreen**: drops bead on the glass and the airstream pushes them up and out at speed; snowflakes stick and melt; flying through cloud mists the glass
   - minimal panel with variometer and a yaw string (glider)
 - Three cameras: chase, cockpit interior, nose
 - **Speed you can feel**: the field of view widens with speed and kicks when you open the throttle, the chase camera falls back while accelerating, and there are speed lines and a light buffet at high speed, on the ground roll and in a stall. "Reduce camera motion" in the menu turns these off.
@@ -78,8 +89,10 @@ Values are checked and only change where you start; the address bar is cleaned a
 - **Cockpit warnings** modelled on real aircraft: stall horn (light aircraft) or stick shaker (jets), overspeed clacker, and GPWS-style voice callouts (PULL UP, SINK RATE, TOO LOW GEAR, BANK ANGLE, STALL) plus radio-altitude callouts on landing (100 … 10 ft) in glass-cockpit aircraft. The voice uses the browser's speech synthesis; the tones are synthesised. You can switch the warnings off in the menu.
 - **Day and night**: the real sun lights the world at the real local time of wherever you fly, and the HUD shows that local time. Or start at sunrise, day, sunset or night (menu, or `T` in flight), and let time run at real speed, 1 min = 1 hour or 1 min = 10 hours to watch the sun set and rise. At night the sky turns black with stars and the moon, and cities light up: NASA's Black Marble glow from high up, and street-level points of light near the ground, made in the browser from the satellite tiles (built-up areas and roads glow, water, forest and fields stay dark).
   - **Gece ve gündüz**: gerçek güneş, uçtuğun yerin gerçek yerel saatine göre dünyayı aydınlatır; yerel saat ekranda görünür. Ya da gün doğumu, gündüz, gün batımı veya gece ile başla (menü ya da uçarken `T`) ve zamanı gerçek hızda, 1 dk = 1 saat ya da 1 dk = 10 saat hızında akıt. Gece gökyüzü yıldızlarla kararır, şehirlerin ışıkları yanar.
-- **Live weather** from [Open-Meteo](https://open-meteo.com/) (free, no key): cumulus clouds around you from the real cloud cover, haze from visibility, rain or snow on the screen, lightning in thunderstorms. **Wind**: the real wind at your height (from the 10 m and 180 m winds, stronger higher up) drifts the aircraft, gusts and storms bring turbulence, light aircraft feel it far more than airliners, and on the runway the nose weathervanes into a crosswind. The HUD shows the weather, the local time and an arrow with where the wind blows relative to your nose. Choose "Clear skies" in the menu to switch it off.
-  - **Canlı hava durumu**: gerçek bulut örtüsünden bulutlar, görüş mesafesinden pus, yağmur ya da kar, fırtınada şimşek. Bulunduğun yükseklikteki gerçek rüzgâr uçağı sürükler, hamle ve fırtına türbülans yapar, hafif uçaklar daha çok etkilenir; ekrandaki ok rüzgârın burnuna göre yönünü gösterir.
+- **Live weather** from [Open-Meteo](https://open-meteo.com/) (free, no key): cumulus clouds around you from the real cloud cover, haze from visibility, rain or snow on the screen, lightning in thunderstorms. When the sky is fully covered there is a real **cloud deck**: a grey ceiling from below, white-out inside, and a sunlit sea of cloud tops when you climb through it. **Wind**: the real wind at your height (from the 10 m and 180 m winds, stronger higher up) drifts the aircraft, gusts and storms bring turbulence, light aircraft feel it far more than airliners, and on the runway the nose weathervanes into a crosswind. The HUD shows the weather, the local time and an arrow with where the wind blows relative to your nose.
+- **Pick the weather yourself**: clear, partly cloudy, overcast, rain, snow, thunderstorm or fog, and set the **wind by hand** (speed and the direction it blows from) on top of any weather.
+  - **Havayı kendin seç**: açık, parçalı bulutlu, kapalı, yağmur, kar, fırtına ya da sis; rüzgârın hızını ve yönünü elle ayarla.
+  - **Canlı hava durumu**: gerçek bulut örtüsünden bulutlar, görüş mesafesinden pus, yağmur ya da kar, fırtınada şimşek. Gökyüzü tamamen kapalıysa bulut tabakasının içinden geçip güneşli bulut denizinin üstüne çıkabilirsin. Bulunduğun yükseklikteki gerçek rüzgâr uçağı sürükler, hamle ve fırtına türbülans yapar, hafif uçaklar daha çok etkilenir; ekrandaki ok rüzgârın burnuna göre yönünü gösterir.
 - Turkish and English UI
 
 ## Map modes and your Cesium ion token
@@ -108,7 +121,7 @@ The token is stored only in the player's browser (`localStorage`, or `sessionSto
 - City search sends only the typed place name to the [Open-Meteo geocoding API](https://open-meteo.com/en/docs/geocoding-api).
 - "Take off from where I am" uses the browser's location permission; the position stays in the browser.
 - The minimap loads map tiles from tile.openstreetmap.org. About every 20 seconds, and only after you have moved a few kilometres, it sends your rounded position to [Nominatim](https://nominatim.org/) to show the place name. This follows the [OSM tile](https://operations.osmfoundation.org/policies/tiles/) and [Nominatim](https://operations.osmfoundation.org/policies/nominatim/) usage policies.
-- Live weather sends the aircraft's position rounded to about 1 km to the [Open-Meteo forecast API](https://open-meteo.com/en/docs) when you take off, then again every 15 minutes or after 40 km. Choose "Clear skies" to send nothing.
+- Live weather sends the aircraft's position rounded to about 1 km to the [Open-Meteo forecast API](https://open-meteo.com/en/docs) when you take off, then again every 15 minutes or after 40 km. Pick any other weather to send nothing.
 - At night the game loads Esri satellite tiles a second time to draw street lights, and NASA GIBS night tiles.
 - Settings, custom aircraft and best times are kept in `localStorage`. There is no server and no tracking.
 - The website loads map tiles from Esri and NASA GIBS, its font from Google Fonts, and sends a typed town name to Open-Meteo only when you press Take off. It has no analytics; your language choice is kept in `localStorage`.
@@ -159,9 +172,11 @@ play.html         the game: welcome screen, menu (flight / aircraft / settings),
 style.css         game UI and HUD styles
 js/main.js        viewer, map modes, game loop, camera, HUD, launch links
 js/sky.js         day and night: sun lighting, time of day, stars, city and street lights
-js/weather.js     live weather (Open-Meteo): clouds, haze, rain, snow, wind, turbulence
+js/weather.js     weather (live from Open-Meteo or picked): clouds, overcast deck, haze, rain, snow, wind, turbulence
+js/airports.js    airport list loader, search, nearest airports, runway geometry
+js/missions.js    take-off and landing missions, runway and PAPI lights
 js/menu.js        menu tabs, place picker + search + coordinates, aircraft grid, hangar, welcome
-js/cockpit.js     cockpit interiors drawn on a canvas overlay (GA, glass, fighter, glider)
+js/cockpit.js     cockpit interiors on a canvas overlay (GA, glass, fighter, glider), rain on the windscreen
 js/fleet.js       101 real aircraft: dimensions, wing/tail/engine layout, speeds, livery
 js/fleetgen.js    turns a fleet entry into a 3D model (lofted meshes) and a flight model
 js/aircraft.js    roster, mods (hangar), old-id aliases
@@ -178,6 +193,7 @@ js/audio.js       WebAudio: recorded loops + synthesiser, chime, crash, gear
 js/storage.js     safe localStorage helpers, token storage
 js/i18n.js        Turkish / English strings
 sounds/           Pixabay sound effects (see credits)
+data/airports.json  airports and runways (OurAirports, public domain), loaded only when needed
 models/           optional .glb models that replace the generated one (Hürjet)
 site/img/         screenshot from the game (website fallback and preview image)
 ```
@@ -188,7 +204,7 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
 
 - Tilt steering for phones
 - Collision with 3D buildings
-- Landing missions at real airports (OurAirports data)
+- Taxiways, ATC and approach lighting systems
 - Daily route challenge, multiplayer ghosts
 
 ## Credits and data terms
@@ -198,6 +214,7 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
 - Lite mode: Esri World Imagery tiles (© Esri, Maxar, Earthstar Geographics). Check [Esri's terms](https://www.esri.com/en-us/legal/terms/full-master-agreement) before heavy or commercial use.
 - City search: [Open-Meteo Geocoding API](https://open-meteo.com/) (data from GeoNames, CC BY 4.0)
 - Weather: [Open-Meteo Forecast API](https://open-meteo.com/) (CC BY 4.0)
+- Airports and runways: [OurAirports](https://ourairports.com/data/) (public domain)
 - City lights (game and website): [NASA Black Marble](https://earthobservatory.nasa.gov/features/NightLights) via NASA GIBS (public domain)
 - Minimap: map tiles and place names © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL), via tile.openstreetmap.org and Nominatim
 - Aircraft models are generated in code from public dimensions for this project. They are simplified likenesses, not official models. The Hürjet `.glb` was built for SkyRoam in Blender from public views and dimensions; it is an approximation, not TUSAŞ's CAD model. Aircraft names are their makers' trademarks and are used only to identify the types.

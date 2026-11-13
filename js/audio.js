@@ -44,6 +44,21 @@ export class EngineSound {
     this.osc2.connect(g2).connect(this.filter);
     this.osc1.start(); this.osc2.start();
 
+    // Propeller buzz: the blade-pass tone and its harmonics (what a prop sounds like on small
+    // speakers, where the low rumble of the recording is lost), pulsing slightly like real blades.
+    this.propOsc = ctx.createOscillator(); this.propOsc.type = 'sawtooth';
+    this.propOsc2 = ctx.createOscillator(); this.propOsc2.type = 'sawtooth'; this.propOsc2.detune.value = 14;
+    this.propTone = ctx.createBiquadFilter(); this.propTone.type = 'lowpass'; this.propTone.frequency.value = 1200; this.propTone.Q.value = 0.9;
+    this.propBody = ctx.createBiquadFilter(); this.propBody.type = 'highpass'; this.propBody.frequency.value = 140;
+    this.propPulse = ctx.createGain(); this.propPulse.gain.value = 0.75;
+    const lfo = this.propLfo = ctx.createOscillator(); lfo.frequency.value = 6;
+    const depth = ctx.createGain(); depth.gain.value = 0.22; lfo.connect(depth).connect(this.propPulse.gain); lfo.start();
+    this.propGain = ctx.createGain(); this.propGain.gain.value = 0;
+    const g3 = ctx.createGain(); g3.gain.value = 0.6;
+    this.propOsc.connect(this.propTone); this.propOsc2.connect(g3).connect(this.propTone);
+    this.propTone.connect(this.propBody).connect(this.propPulse).connect(this.propGain).connect(this.master);
+    this.propOsc.start(); this.propOsc2.start();
+
     // Wind: looped noise through a band-pass filter.
     const len = ctx.sampleRate * 2;
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -189,12 +204,20 @@ export class EngineSound {
     if (this.hasSamples) {
       const prop = on * (engine === 'prop' ? 1 : 0), jt = on * (jet ? 1 : 0);
       const small = this.small ? 0.25 : 0; // small single-engine props run at a higher pitch
-      this._loop('prop', prop * (0.3 + throttle * 0.75), 0.7 + small + throttle * 0.55, t);
+      this._loop('prop', prop * (0.45 + throttle * 0.8), 0.85 + small + throttle * 0.6, t);
       this._loop('jet', jt * (0.12 + throttle * 0.45), 0.8 + throttle * 0.35, t, 0.6);
       this._loop('turbine', jt * (0.05 + throttle * 0.16), 0.75 + throttle * 0.5, t, 0.8);
       this._loop('wind', on * Math.min(0.7, w * w * 0.55 + Math.min(1, speed / 300) * 0.15), 0.8 + w * 0.5, t, 0.4);
     }
     this.windFilter.frequency.setTargetAtTime(400 + w * 900 + (jet ? 300 : 0), t, 0.3);
+    // propeller buzz: blade-pass frequency rises with rpm; small props spin faster and sound higher
+    const isProp = on * (engine === 'prop' ? 1 : 0);
+    const bp = (this.small ? 88 : 62) + throttle * (this.small ? 60 : 42);
+    this.propOsc.frequency.setTargetAtTime(bp, t, 0.25);
+    this.propOsc2.frequency.setTargetAtTime(bp * 2, t, 0.25);
+    this.propTone.frequency.setTargetAtTime(700 + throttle * 1500, t, 0.25);
+    this.propLfo.frequency.setTargetAtTime(4 + throttle * 5, t, 0.4);
+    this.propGain.gain.setTargetAtTime(isProp * (0.035 + throttle * 0.075), t, 0.25);
   }
 
   /** One-shot chime for passing a ring. */

@@ -3,6 +3,7 @@ import { t, setLang, getLang, applyI18n } from './i18n.js';
 import { CONTINENTS, HISTORIC, NATURE, siteToPlace, cityToPlace } from './places.js';
 import { AIRCRAFT, ALIASES, resolveAircraft, statsOf, DEFAULT_MODS, baseById } from './aircraft.js';
 import { KEY_HELP } from './input.js';
+import { loadAirports, searchAirports, nearestAirports, runwayEnds, airportPlace, airportsLoaded } from './airports.js';
 import { readJSON, writeJSON, saveToken, looksLikeToken } from './storage.js';
 
 const $ = id => document.getElementById(id);
@@ -69,6 +70,12 @@ export function initMenu(ctx) {
     if (p.cat === 'nature') return siteToPlace(NATURE[p.nat] || NATURE[0], getLang(), 'nature');
     if (p.cat === 'search' && p.search) return p.search;
     if (p.cat === 'coords' && p.coords) return p.coords;
+    if (p.cat === 'airport' && p.airport) return p.airport;
+    return cityPlace();
+  }
+
+  function cityPlace() {
+    const p = prefs.pick;
     const cont = CONTINENTS[p.cont] || CONTINENTS[0];
     const country = cont.countries[p.country] || cont.countries[0];
     return cityToPlace(country.c[p.city] || country.c[0], country, getLang());
@@ -84,8 +91,51 @@ export function initMenu(ctx) {
     prefs.pick.cat = r.value;
     $$('.picker').forEach(d => { d.hidden = d.dataset.pick !== r.value; });
     if (r.value === 'search') $('searchInput').focus();
+    if (r.value === 'airport') showAirports();
     placeChanged();
   }));
+
+  // ---- airports: offline search in the bundled OurAirports list, or the ones nearest the chosen city
+  let apList = [], apChosen = null;
+  async function showAirports(query = $('apInput').value) {
+    try { await loadAirports(); } catch { $('apNote').textContent = t('searchFail'); return; }
+    const near = !query.trim();
+    const c = cityPlace();
+    apList = near ? nearestAirports(c.lat, c.lon, 8) : searchAirports(query, 12);
+    $('apNote').textContent = near ? t('apNear', { c: c.name }) : apList.length ? '' : t('searchNone');
+    renderAirports();
+  }
+  function renderAirports() {
+    const box = $('apResults');
+    box.innerHTML = '';
+    const cur = prefs.pick.airport?.airport;
+    for (const ap of apList) {
+      const sub = [ap.city, ap.country, ap.dist ? `${Math.round(ap.dist / 1000)} km` : ''].filter(Boolean).join(' · ');
+      const b = el('button', { type: 'button' }, `${ap.iata || ap.icao} · ${ap.name}`, ' ', el('small', { textContent: sub }));
+      b.setAttribute('aria-pressed', String(cur?.icao === ap.icao));
+      b.addEventListener('click', () => { apChosen = ap; chooseRunway(runwayEnds(ap)[0]); renderAirports(); });
+      box.append(b);
+    }
+    renderRunways();
+  }
+  function renderRunways() {
+    const cur = prefs.pick.airport?.airport;
+    const ap = apChosen && apChosen.icao === cur?.icao ? apChosen : airportsLoaded()?.find(a => a.icao === cur?.icao);
+    $('rwyField').hidden = !ap;
+    if (!ap) return;
+    apChosen = ap;
+    const ends = runwayEnds(ap);
+    $('rwySel').innerHTML = '';
+    ends.forEach((e, i) => $('rwySel').append(el('option', { value: String(i), textContent: `${e.id} · ${String(Math.round(e.hdg)).padStart(3, '0')}° · ${e.len} m` })));
+    $('rwySel').value = String(Math.max(0, ends.findIndex(e => e.id === cur.rwy.id)));
+  }
+  function chooseRunway(end) {
+    prefs.pick.airport = airportPlace(apChosen, end);
+    placeChanged();
+  }
+  $('rwySel').addEventListener('change', e => { if (apChosen) chooseRunway(runwayEnds(apChosen)[+e.target.value]); });
+  $('apBtn').addEventListener('click', () => showAirports());
+  $('apInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); showAirports(); } });
   $('contSel').addEventListener('change', e => { Object.assign(prefs.pick, { cont: +e.target.value, country: 0, city: 0 }); renderPlacePickers(); placeChanged(); });
   $('countrySel').addEventListener('change', e => { Object.assign(prefs.pick, { country: +e.target.value, city: 0 }); renderPlacePickers(); placeChanged(); });
   $('citySel').addEventListener('change', e => { prefs.pick.city = +e.target.value; placeChanged(); });
@@ -377,10 +427,20 @@ export function initMenu(ctx) {
   $$('input[name=tod]').forEach(r => r.addEventListener('change', () => { prefs.tod = r.value; savePrefs(); ctx.onOptions(); }));
   $$('input[name=wx]').forEach(r => r.addEventListener('change', () => { prefs.wx = r.value; savePrefs(); ctx.onOptions(); }));
   $$('input[name=tspeed]').forEach(r => r.addEventListener('change', () => { prefs.tspeed = +r.value; savePrefs(); ctx.onOptions(); }));
+  $('optWindMan').addEventListener('change', e => { prefs.windMan = e.target.checked; savePrefs(); updateWindBox(); ctx.onOptions(); });
+  $('windKmh').addEventListener('input', e => { prefs.windKmh = +e.target.value; savePrefs(); updateWindBox(); ctx.onOptions(); });
+  $('windDir').addEventListener('input', e => { prefs.windDir = +e.target.value; savePrefs(); updateWindBox(); ctx.onOptions(); });
+
+  function updateWindBox() {
+    $('windBox').hidden = !prefs.windMan;
+    $('windKmhOut').textContent = `${prefs.windKmh ?? 30}`;
+    const d = prefs.windDir ?? 270;
+    $('windDirOut').textContent = `${t('compass').split(',')[Math.round(d / 45) % 8]} ${d}°`;
+  }
   $('showWelcome').addEventListener('click', () => { $('welcome').hidden = false; });
 
   function updateModeHint() {
-    $('modeHint').textContent = t(prefs.mode === 'rings' ? 'modeRingsHint' : 'modeFreeHint');
+    $('modeHint').textContent = t({ rings: 'modeRingsHint', takeoff: 'modeTakeoffHint', landing: 'modeLandingHint' }[prefs.mode] || 'modeFreeHint');
   }
 
   function renderKeys() {
@@ -431,12 +491,17 @@ export function initMenu(ctx) {
     $$('.langBtn').forEach(b => { b.textContent = getLang() === 'tr' ? 'EN' : 'TR'; });
     renderPlacePickers();
     renderAircraft();
-    $$('input[name=mode]').forEach(r => { r.checked = r.value === (prefs.mode === 'rings' ? 'rings' : 'free'); });
+    $$('input[name=mode]').forEach(r => { r.checked = r.value === (['rings', 'takeoff', 'landing'].includes(prefs.mode) ? prefs.mode : 'free'); });
+    if (prefs.pick.cat === 'airport') showAirports();
     updateModeHint();
     $('optInvert').checked = !!prefs.invert;
     $$('input[name=tod]').forEach(r => { r.checked = r.value === (prefs.tod || 'auto'); });
     $$('input[name=wx]').forEach(r => { r.checked = r.value === (prefs.wx || 'live'); });
     $$('input[name=tspeed]').forEach(r => { r.checked = +r.value === (prefs.tspeed || 1); });
+    $('optWindMan').checked = !!prefs.windMan;
+    $('windKmh').value = prefs.windKmh ?? 30;
+    $('windDir').value = prefs.windDir ?? 270;
+    updateWindBox();
     $('optAssist').checked = prefs.assist !== false;
     $('optCalm').checked = !!prefs.calm;
     $('optWarn').checked = prefs.warnings !== false;

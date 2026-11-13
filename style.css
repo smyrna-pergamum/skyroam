@@ -66,6 +66,9 @@ select option { background: #0f1a2e; }
   display: block; text-align: center; padding: 10px; border-radius: 10px;
   border: 1px solid var(--line); background: rgba(255,255,255,.04);
 }
+.seg.wrap { flex-wrap: wrap; }
+.seg.wrap label { flex: 1 1 calc(25% - 8px); min-width: 92px; }
+.wind-check { margin-top: 10px; }
 .seg input:checked + span { border-color: var(--accent); background: rgba(56,189,248,.16); }
 .seg input:focus-visible + span { outline: 2px solid var(--accent); }
 
@@ -270,7 +273,7 @@ input[type=number] {
 @media (max-width: 640px) {
   .throttle-lever { top: auto; bottom: 70px; transform: none; width: 56px; }
   .tl-track { height: 26vh; }
-  #ringPanel { top: 120px; }
+  #ringPanel, #missionPanel { top: 120px; }
 }
 
 /* ---------- v4: speed feel, minimap ---------- */
@@ -292,7 +295,7 @@ body.minimap-off .minimap { display: none; }
   .minimap { top: 64px; bottom: auto; width: 116px; }
   .minimap canvas { width: 104px; height: 104px; }
   .mm-coords { display: none; }
-  #ringPanel { top: 220px; }
+  #ringPanel, #missionPanel { top: 220px; }
 }
 .ac-search {
   width: 100%; margin: 8px 0 2px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
@@ -335,7 +338,9 @@ body.touch .mm-coords, body.touch .mm-attr a { font-size: 8px; }
 body.touch .mm-coords { display: none; }
 body.touch .hud-left { transform: scale(.72); transform-origin: top left; }
 body.touch .hud-top { top: auto; bottom: 8px; }
-body.touch #ringPanel { top: 160px; right: 8px; }
+body.touch #ringPanel, body.touch #missionPanel { top: 160px; right: 8px; }
+#missionPanel { min-width: 210px; }
+.mis-line { font-size: 13px; margin-top: 4px; font-variant-numeric: tabular-nums; }
 body.touch .warn { top: 22%; }
 @media (orientation: portrait) {
   body.touch .t-stick { height: 45vh; width: 55vw; }
