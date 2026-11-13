@@ -16,7 +16,7 @@ const TR = {
   gateReady: 'Hazır. Hava kararmak üzere.', enter: 'Göğe gir', enterQuiet: 'Sessiz gir', gateNote: 'Sesle girersin. İstediğin an kapatabilirsin.',
   play: 'Hemen oyna',
   w1: 'İstanbul, Boğaz', h1: 'Kendi sokağından havalan.', l1: 'SkyRoam, bütün gezegenin gerçek haritası üzerinde ücretsiz bir uçuş oyunu. Tarayıcında çalışır.',
-  w2: 'Marmara Denizi üzerinde', h2: 'Kanatların yüzyılı.', l2: 'Yüz gerçek uçak, her biri gerçek boyutu ve hızıyla kuruldu. Kaydırmaya devam et, değişmelerini izle.',
+  w2: 'Marmara Denizi üzerinde', h2: 'Kanatların yüzyılı.', l2: 'Yüzü aşkın gerçek uçak, her biri gerçek boyutu ve hızıyla kuruldu. Kaydırmaya devam et, değişmelerini izle.',
   w3: 'Çanakkale Boğazı, gün batarken', h3: 'Öne otur.', l3: 'Yolcu uçaklarında cam ekranlar, Cessna’da yuvarlak göstergeler ve sana “pull up” diyen bir ses.',
   w4: 'Truva, ışıklar yanarken', h4: 'İki başparmakla uç.', l4: 'Telefon, klavye ya da oyun kolu. Kurulum yok, hesap yok, reklam yok.',
   w5: 'Bergama, karanlık çökünce', h5: 'Nereden havalanacaksın?',
@@ -71,7 +71,7 @@ const CH_ROUTE = [0, 0.16, 0.5, 0.7, 0.86, 1];
 // Time of day: golden hour over Istanbul, after dark over Pergamon (21 December, UTC).
 const T0 = '2026-12-21T12:55:00Z', T1 = '2026-12-21T15:05:00Z';
 // Aircraft per chapter; chapter 2 runs through the century.
-const CENTURY = ['wright-flyer', 'bleriot-xi', 'sopwith-camel', 'spirit-st-louis', 'dc-3', 'spitfire-ix', 'constellation', 'b707-320b', 'concorde', 'b747-400', 'a380-800'];
+const CENTURY = ['wright-flyer', 'bleriot-xi', 'sopwith-camel', 'spirit-st-louis', 'dc-3', 'spitfire-ix', 'constellation', 'b707-320b', 'concorde', 'b747-400', 'a380-800', 'hurjet'];
 const CH_PLANE = ['a320neo', null, 'b777-300er', 'cessna-172', 'p-51d'];
 
 // Catmull-Rom through the waypoints, then an arc-length table so speed is even.

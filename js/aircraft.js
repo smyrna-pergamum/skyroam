@@ -1,4 +1,4 @@
-// Aircraft roster: 100 real-world types (data in fleet.js, models + flight models generated in fleetgen.js).
+// Aircraft roster: 101 real-world types (data in fleet.js, models + flight models generated in fleetgen.js).
 import { FLEET } from './fleet.js';
 import { makeBase } from './fleetgen.js';
 

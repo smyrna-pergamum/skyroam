@@ -1,8 +1,8 @@
 # SkyRoam ✈
 
-**A browser flight game over the real world.** Pick one of 100 real aircraft, pick any town on Earth or a world-famous historic site, and fly. No install, no account, no server: a static site with a website and the game.
+**A browser flight game over the real world.** Pick one of 101 real aircraft, pick any town on Earth or a world-famous historic site, and fly. No install, no account, no server: a static site with a website and the game.
 
-**Gerçek dünya haritası üzerinde tarayıcıda uçuş oyunu.** 100 gerçek uçaktan birini seç, dünyadaki herhangi bir yeri ya da ünlü bir tarihi alanı seç ve uç. Kurulum yok, hesap yok, sunucu yok: bir web sitesi ve oyundan oluşan statik bir site.
+**Gerçek dünya haritası üzerinde tarayıcıda uçuş oyunu.** 101 gerçek uçaktan birini seç, dünyadaki herhangi bir yeri ya da ünlü bir tarihi alanı seç ve uç. Kurulum yok, hesap yok, sunucu yok: bir web sitesi ve oyundan oluşan statik bir site.
 
 | | |
 |---|---|
@@ -45,7 +45,7 @@ Values are checked and only change where you start; the address bar is cleaned a
 ## Features / Özellikler
 
 - **Real world** via [CesiumJS](https://cesium.com/platform/cesiumjs/): satellite imagery, real terrain and 3D buildings
-- **100 real-world aircraft** in four groups (commercial 27, civil 24, military 25, historic 24): A320neo, 737 MAX, 777, 787, A380, Concorde, Cessna 172, Cirrus SR22, ASK 21 glider, F-16, F-35, Eurofighter, KAAN, Hürkuş, Bayraktar TB2, Akıncı, B-2, C-130J, Wright Flyer, Fokker Dr.I, Spitfire, P-51, DC-3, Vecihi K-VI, Nu.D.36 and many more
+- **101 real-world aircraft** in four groups (commercial 27, civil 24, military 26, historic 24): A320neo, 737 MAX, 777, 787, A380, Concorde, Cessna 172, Cirrus SR22, ASK 21 glider, F-16, F-35, Eurofighter, KAAN, Hürjet, Hürkuş, Bayraktar TB2, Akıncı, B-2, C-130J, Wright Flyer, Fokker Dr.I, Spitfire, P-51, DC-3, Vecihi K-VI, Nu.D.36 and many more
   - Each model is generated from the type's real dimensions and layout: smooth lofted fuselage, tapered and swept wings, T-tails, twin tails, canards, deltas, biplanes and triplanes, engine nacelles and propellers, canopies, cabin windows, winglets and livery
   - Each flight model comes from the type's real top and stall speeds and handling class (supersonic speeds are compressed so the map can keep up)
   - Search by name, maker, country or year, and filter by group
@@ -150,7 +150,7 @@ style.css         game UI and HUD styles
 js/main.js        viewer, map modes, game loop, camera, HUD, launch links
 js/menu.js        menu tabs, place picker + search + coordinates, aircraft grid, hangar, welcome
 js/cockpit.js     cockpit interiors drawn on a canvas overlay (GA, glass, fighter, glider)
-js/fleet.js       100 real aircraft: dimensions, wing/tail/engine layout, speeds, livery
+js/fleet.js       101 real aircraft: dimensions, wing/tail/engine layout, speeds, livery
 js/fleetgen.js    turns a fleet entry into a 3D model (lofted meshes) and a flight model
 js/aircraft.js    roster, mods (hangar), old-id aliases
 js/warnings.js    cockpit warnings: stall horn / shaker, clacker, GPWS voice callouts
@@ -166,10 +166,11 @@ js/audio.js       WebAudio: recorded loops + synthesiser, chime, crash, gear
 js/storage.js     safe localStorage helpers, token storage
 js/i18n.js        Turkish / English strings
 sounds/           Pixabay sound effects (see credits)
+models/           optional .glb models that replace the generated one (Hürjet)
 site/img/         screenshot from the game (website fallback and preview image)
 ```
 
-Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the flight model are generated from it. Adding a place: add a row to `js/places.js`.
+Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the flight model are generated from it. To use a real 3D model instead, put a `.glb` in `models/` (metres, glTF +Y up, nose +Z) and add `model: { url: 'models/name.glb' }` to the entry; the generated model shows until it has loaded. Adding a place: add a row to `js/places.js`.
 
 ## Roadmap ideas
 
@@ -186,7 +187,7 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
 - City search: [Open-Meteo Geocoding API](https://open-meteo.com/) (data from GeoNames, CC BY 4.0)
 - Website city lights: [NASA Black Marble](https://earthobservatory.nasa.gov/features/NightLights) via NASA GIBS (public domain)
 - Minimap: map tiles and place names © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL), via tile.openstreetmap.org and Nominatim
-- Aircraft models are generated in code from public dimensions for this project. They are simplified likenesses, not official models. Aircraft names are their makers' trademarks and are used only to identify the types.
+- Aircraft models are generated in code from public dimensions for this project. They are simplified likenesses, not official models. The Hürjet `.glb` was built for SkyRoam in Blender from public views and dimensions; it is an approximation, not TUSAŞ's CAD model. Aircraft names are their makers' trademarks and are used only to identify the types.
 - Sounds from [Pixabay](https://pixabay.com/sound-effects/) under the [Pixabay Content License](https://pixabay.com/service/license-summary/):
   - `prop.mp3`: "Propeller.wav" by freesound_community
   - `jet.mp3`: "Jet Engine" by freesound_community
