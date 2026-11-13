@@ -376,6 +376,7 @@ export function initMenu(ctx) {
   $$('input[name=mode]').forEach(r => r.addEventListener('change', () => { prefs.mode = r.value; savePrefs(); updateModeHint(); }));
   $$('input[name=tod]').forEach(r => r.addEventListener('change', () => { prefs.tod = r.value; savePrefs(); ctx.onOptions(); }));
   $$('input[name=wx]').forEach(r => r.addEventListener('change', () => { prefs.wx = r.value; savePrefs(); ctx.onOptions(); }));
+  $$('input[name=tspeed]').forEach(r => r.addEventListener('change', () => { prefs.tspeed = +r.value; savePrefs(); ctx.onOptions(); }));
   $('showWelcome').addEventListener('click', () => { $('welcome').hidden = false; });
 
   function updateModeHint() {
@@ -435,6 +436,7 @@ export function initMenu(ctx) {
     $('optInvert').checked = !!prefs.invert;
     $$('input[name=tod]').forEach(r => { r.checked = r.value === (prefs.tod || 'auto'); });
     $$('input[name=wx]').forEach(r => { r.checked = r.value === (prefs.wx || 'live'); });
+    $$('input[name=tspeed]').forEach(r => { r.checked = +r.value === (prefs.tspeed || 1); });
     $('optAssist').checked = prefs.assist !== false;
     $('optCalm').checked = !!prefs.calm;
     $('optWarn').checked = prefs.warnings !== false;

@@ -23,6 +23,7 @@
       <div id="hHeading" class="heading">000°</div>
       <div id="hPlace" class="mode-badge"></div>
       <div id="hWx" class="mode-badge"></div>
+      <div class="hud-sky mode-badge"><span id="hClock"></span><span id="hWind" hidden><svg id="hWindArrow" class="wind-arrow" viewBox="0 0 12 16" aria-hidden="true"><path d="M6 0 L12 7 H8 V16 H4 V7 H0 Z"/></svg><span id="hWindTxt"></span></span></div>
     </div>
 
     <div class="hud-left glass">
@@ -173,6 +174,7 @@
           <span class="label" data-i18n="tod"></span>
           <div class="seg" role="radiogroup">
             <label><input type="radio" name="tod" value="auto" checked><span data-i18n="todAuto"></span></label>
+            <label><input type="radio" name="tod" value="sunrise"><span data-i18n="todSunrise"></span></label>
             <label><input type="radio" name="tod" value="day"><span data-i18n="todDay"></span></label>
             <label><input type="radio" name="tod" value="dusk"><span data-i18n="todDusk"></span></label>
             <label><input type="radio" name="tod" value="night"><span data-i18n="todNight"></span></label>
@@ -186,6 +188,15 @@
             <label><input type="radio" name="wx" value="clear"><span data-i18n="wxClear"></span></label>
           </div>
           <p class="hint" data-i18n="wxHint"></p>
+        </div>
+
+        <div class="field">
+          <span class="label" data-i18n="tspeed"></span>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="tspeed" value="1" checked><span data-i18n="tspeed1"></span></label>
+            <label><input type="radio" name="tspeed" value="60"><span data-i18n="tspeed60"></span></label>
+            <label><input type="radio" name="tspeed" value="600"><span data-i18n="tspeed600"></span></label>
+          </div>
         </div>
 
         <div class="field row">

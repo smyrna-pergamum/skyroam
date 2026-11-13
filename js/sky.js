@@ -1,9 +1,11 @@
 /* global Cesium */
 // Day and night. Cesium's own sun lighting drives the terminator, the sky colour and the stars;
-// NASA Black Marble city lights show on the night side. The time of day is either the real time
-// at the place ('auto') or a fixed moment of the local solar day ('day' | 'dusk' | 'night').
+// NASA Black Marble city lights glow on the night side and street lights appear near the ground.
+// The time of day is the real local time at the place ('auto') or a chosen moment of the local
+// solar day ('sunrise' | 'day' | 'dusk' | 'night'); the clock then runs on at the chosen speed.
 
-export const TIME_MODES = ['auto', 'day', 'dusk', 'night'];
+export const TIME_MODES = ['auto', 'sunrise', 'day', 'dusk', 'night'];
+export const TIME_SPEEDS = [1, 60, 600];
 
 const NIGHT_URL = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png';
 const D2R = Math.PI / 180;
@@ -13,47 +15,65 @@ const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery
 
 // Street lights for the close-up view. NASA's night map is ~500 m per pixel, a soft glow from low
 // altitude; here each satellite tile is turned into points of light: built-up grey and roads glow
-// warm, water, forest, fields and snow stay dark. Deterministic per pixel, so tiles never flicker.
+// warm, water, forest, fields and snow stay dark. Deterministic, so tiles never flicker.
+// Runs in a worker when the browser has OffscreenCanvas, so flying never waits for it.
+function paintLights(ctx, img, x, y, level) {
+  ctx.clearRect(0, 0, 256, 256);
+  ctx.drawImage(img, 0, 0, 256, 256);
+  const d = ctx.getImageData(0, 0, 256, 256).data;
+  const block = new Float32Array(64 * 64);   // built-up score per 4×4 block
+  for (let i = 0, px = 0; i < d.length; i += 4, px++) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), lum = 0.3 * r + 0.59 * g + 0.11 * b;
+    if (lum < 70 || lum > 235 || mx - mn > 46 || g > r + 6 || b > r + 12) continue; // shadow, snow, colour, green, water
+    block[((px >> 10) << 6) + ((px & 255) >> 2)] += Math.min(1, (lum - 70) / 90) * (1 - (mx - mn) / 46) / 16;
+  }
+  ctx.clearRect(0, 0, 256, 256);
+  const dens = Math.min(1, 0.4 + (level - 11) * 0.13); // more lamps as you get closer
+  for (let k = 0; k < 4096; k++) {
+    const u = block[k];
+    if (u < 0.15) continue;
+    const bx = (k & 63) * 4, by = (k >> 6) * 4;
+    ctx.fillStyle = `rgba(255,170,80,${(0.14 + u * 0.3).toFixed(3)})`; // warm floor that survives filtering
+    ctx.fillRect(bx, by, 4, 4);
+    let h = (k * 2654435761 + x * 97 + y * 131 + level) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0;
+    if ((h & 1023) / 1024 > Math.min(0.9, u * dens * 1.7)) continue;
+    const white = ((h >>> 12) & 3) === 0;                         // a few cool white lamps among sodium ones
+    ctx.fillStyle = white ? 'rgba(255,244,220,0.95)' : 'rgba(255,196,110,0.95)';
+    ctx.beginPath();
+    ctx.arc(bx + 0.5 + ((h >>> 16) & 3), by + 0.5 + ((h >>> 20) & 3), 1.25 + u * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function lightsWorker() {
+  if (typeof OffscreenCanvas === 'undefined' || typeof Worker === 'undefined') return null;
+  try {
+    const src = `${paintLights.toString()}
+const c = new OffscreenCanvas(256, 256), ctx = c.getContext('2d', { willReadFrequently: true });
+self.onmessage = e => { const { id, img, x, y, level } = e.data;
+  try { paintLights(ctx, img, x, y, level); img.close(); const out = c.transferToImageBitmap(); self.postMessage({ id, out }, [out]); }
+  catch (err) { self.postMessage({ id, err: String(err) }); } };`;
+    const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    const jobs = new Map(); let next = 0;
+    w.onmessage = e => { const j = jobs.get(e.data.id); jobs.delete(e.data.id); if (!j) return; if (e.data.out) j.res(e.data.out); else j.rej(new Error(e.data.err)); };
+    return (img, x, y, level) => new Promise((res, rej) => { const id = ++next; jobs.set(id, { res, rej }); w.postMessage({ id, img, x, y, level }, [img]); });
+  } catch { return null; }
+}
+
 function lightsProvider() {
   const p = new Cesium.UrlTemplateImageryProvider({ url: ESRI, maximumLevel: 16, credit: new Cesium.Credit('Imagery © Esri, Maxar, Earthstar Geographics') });
   const fetchTile = p.requestImage.bind(p);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 256;
-  let empty = null; // far tiles (zoom < 11) stay empty: no download, NASA's glow covers them
+  const work = lightsWorker();
+  let canvas = null, empty = null; // far tiles (zoom < 11) stay empty: no download, NASA's glow covers them
   p.requestImage = (x, y, level, request) => {
     if (level < 11) return (empty ||= createImageBitmap(new ImageData(1, 1)));
     const pending = fetchTile(x, y, level, request);
     if (!pending) return pending;
-    return pending.then(img => {
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.clearRect(0, 0, 256, 256);
-      ctx.drawImage(img, 0, 0, 256, 256);
-      const d = ctx.getImageData(0, 0, 256, 256).data;
-      // built-up score per 4×4 block: grey, mid-bright pixels; not water, vegetation, snow or shadow
-      const block = new Float32Array(64 * 64);
-      for (let i = 0, px = 0; i < d.length; i += 4, px++) {
-        const r = d[i], g = d[i + 1], b = d[i + 2];
-        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), lum = 0.3 * r + 0.59 * g + 0.11 * b;
-        if (lum < 70 || lum > 235 || mx - mn > 46 || g > r + 6 || b > r + 12) continue;
-        block[((px >> 10) << 6) + ((px & 255) >> 2)] += Math.min(1, (lum - 70) / 90) * (1 - (mx - mn) / 46) / 16;
-      }
-      ctx.clearRect(0, 0, 256, 256);
-      const dens = Math.min(1, 0.4 + (level - 11) * 0.13); // more lamps as you get closer
-      for (let k = 0; k < 4096; k++) {
-        const u = block[k];
-        if (u < 0.15) continue;
-        const bx = (k & 63) * 4, by = (k >> 6) * 4;
-        // a soft warm floor that survives texture filtering from far away
-        ctx.fillStyle = `rgba(255,170,80,${(0.14 + u * 0.3).toFixed(3)})`;
-        ctx.fillRect(bx, by, 4, 4);
-        let h = (k * 2654435761 + x * 97 + y * 131 + level) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0;
-        if ((h & 1023) / 1024 > Math.min(0.9, u * dens * 1.7)) continue;
-        const white = ((h >>> 12) & 3) === 0;                         // a few cool white lamps among sodium ones
-        ctx.fillStyle = white ? 'rgba(255,244,220,0.95)' : 'rgba(255,196,110,0.95)';
-        ctx.beginPath();
-        ctx.arc(bx + 0.5 + ((h >>> 16) & 3), by + 0.5 + ((h >>> 20) & 3), 1.25 + u * 0.9, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    return pending.then(async img => {
+      if (work) return work(img instanceof ImageBitmap ? img : await createImageBitmap(img), x, y, level);
+      if (!canvas) { canvas = document.createElement('canvas'); canvas.width = canvas.height = 256; }
+      paintLights(canvas.getContext('2d', { willReadFrequently: true }), img, x, y, level);
       return createImageBitmap(canvas);
     });
   };
@@ -65,6 +85,7 @@ export class Sky {
     this.viewer = viewer;
     this.scene = viewer.scene;
     this.mode = 'auto';
+    this.speed = 1;
     this.night = null;
     this.elev = 90;           // sun elevation (deg) at the last point asked about
     this._sun = new Cesium.Cartesian3();
@@ -126,25 +147,40 @@ export class Sky {
     return Math.asin(Cesium.Cartesian3.dot(sun, n)) / D2R;
   }
 
-  /** Set the clock for the chosen mode at this place. */
-  setMode(mode, lonDeg, latDeg) {
+  /** Set the clock for the chosen mode at this place: 'auto' is now; the others are today's
+   *  sunrise, late morning, sunset or midnight there. Time then runs on at `speed`×. */
+  setMode(mode, lonDeg, latDeg, speed = this.speed || 1) {
     this.mode = TIME_MODES.includes(mode) ? mode : 'auto';
+    this.setSpeed(speed);
     const clock = this.viewer.clock;
-    const now = Cesium.JulianDate.now();
-    if (this.mode === 'auto') { clock.currentTime = now; return; }
-    // Local solar noon today: 12:00 UTC shifted by longitude.
+    if (this.mode === 'auto') { clock.currentTime = Cesium.JulianDate.now(); return; }
+    // local solar noon today: 12:00 UTC shifted by longitude
     const noon = Cesium.JulianDate.fromDate(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate(), 12)));
     Cesium.JulianDate.addSeconds(noon, -lonDeg / 15 * 3600, noon);
-    if (this.mode === 'day') { Cesium.JulianDate.addSeconds(noon, -1.5 * 3600, clock.currentTime); return; } // late morning light
+    if (this.mode === 'day') { Cesium.JulianDate.addSeconds(noon, -1.5 * 3600, clock.currentTime); return; }
     if (this.mode === 'night') { Cesium.JulianDate.addSeconds(noon, 11 * 3600, clock.currentTime); return; }
-    // dusk: walk the afternoon until the sun is 1° above the horizon
+    // sunrise / sunset: walk from noon until the sun is 1° above the horizon (polar day/night: fall back)
+    const dir = this.mode === 'sunrise' ? -1 : 1;
     const t = new Cesium.JulianDate();
-    let pick = Cesium.JulianDate.addSeconds(noon, 5 * 3600, new Cesium.JulianDate());
+    let pick = Cesium.JulianDate.addSeconds(noon, dir * 6 * 3600, new Cesium.JulianDate());
     for (let s = 0; s <= 12 * 3600; s += 300) {
-      Cesium.JulianDate.addSeconds(noon, s, t);
+      Cesium.JulianDate.addSeconds(noon, dir * s, t);
       if (this.sunElevation(lonDeg, latDeg, t) < 1) { pick = Cesium.JulianDate.clone(t); break; }
     }
     clock.currentTime = pick;
+  }
+
+  setSpeed(speed) {
+    this.speed = TIME_SPEEDS.includes(+speed) ? +speed : 1;
+    this.viewer.clock.multiplier = this.speed;
+  }
+
+  /** Local time at the place as "HH:MM": the place's time zone when known, otherwise solar time. */
+  localTime(lonDeg, utcOffsetSec) {
+    const d = Cesium.JulianDate.toDate(this.viewer.clock.currentTime);
+    const off = Number.isFinite(utcOffsetSec) ? utcOffsetSec : Math.round(lonDeg / 15) * 3600;
+    const m = ((Math.floor((d.getTime() / 1000 + off) / 60) % 1440) + 1440) % 1440;
+    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   }
 
   /** Per frame (cheap enough), with the camera's position in degrees. Returns darkness 0..1. */
@@ -158,7 +194,7 @@ export class Sky {
     // the ground's own atmosphere glows blue at night; dim it so the lights carry the scene
     const ga = this.scene.atmosphere;
     if (ga) { ga.brightnessShift = -0.7 * dark - 0.15 * cloud; ga.saturationShift = -0.4 * dark - 0.3 * cloud; }
-    this.scene.globe.showGroundAtmosphere = dark < 0.6;
+    if (this.scene.globe.showGroundAtmosphere !== dark < 0.6) this.scene.globe.showGroundAtmosphere = dark < 0.6;
     // models (and the generated aircraft) get dimmer at night, never fully black
     if (this.scene.light) this.scene.light.intensity = Math.max(0.45, 2.0 * (1 - 0.7 * dark) * (1 - 0.35 * cloud));
     // overcast: a flatter, dimmer ground

@@ -36,7 +36,8 @@ play.html?fly=1&lat=41.04&lon=29.02&name=Istanbul&ac=a320neo&hdg=20&alt=700&cam=
 | `hdg`, `alt` | heading in degrees, altitude in metres |
 | `cam` | `chase`, `cockpit` or `nose` |
 | `lang` | `tr` or `en` |
-| `tod` | time of day: `auto` (real time at the place), `day`, `dusk` or `night` |
+| `tod` | time of day: `auto` (real local time at the place), `sunrise`, `day`, `dusk` or `night` |
+| `tspeed` | how fast time runs: `1` (real), `60` (1 min = 1 hour) or `600` (1 min = 10 hours) |
 | `wx` | weather: `live` or `clear` |
 | `fly=1` | skip the menu and take off at once (without it, the menu opens with these choices selected) |
 
@@ -75,10 +76,10 @@ Values are checked and only change where you start; the address bar is cleaned a
 - Keyboard, gamepad and touch
 - Recorded engine, turbine, wind, crash and landing-gear sounds (from Pixabay) layered over a small synthesiser
 - **Cockpit warnings** modelled on real aircraft: stall horn (light aircraft) or stick shaker (jets), overspeed clacker, and GPWS-style voice callouts (PULL UP, SINK RATE, TOO LOW GEAR, BANK ANGLE, STALL) plus radio-altitude callouts on landing (100 … 10 ft) in glass-cockpit aircraft. The voice uses the browser's speech synthesis; the tones are synthesised. You can switch the warnings off in the menu.
-- **Day and night**: the real sun lights the world, so the time of day is true for wherever you fly; or pick day, sunset or night in the menu (`T` cycles it in flight). At night the sky turns black with stars and the moon, and cities light up: NASA's Black Marble glow from high up, and street-level points of light near the ground, made in the browser from the satellite tiles (built-up areas and roads glow, water, forest and fields stay dark).
-  - **Gece ve gündüz**: gerçek güneş dünyayı aydınlatır, saat uçtuğun yere göre doğrudur; ya da menüden gündüz, gün batımı veya gece seç (uçarken `T`). Gece gökyüzü yıldızlarla kararır, şehirlerin ışıkları yanar.
-- **Live weather** from [Open-Meteo](https://open-meteo.com/) (free, no key): cumulus clouds around you from the real cloud cover, haze from visibility, rain or snow on the screen, lightning in thunderstorms, the real wind drifting you and gusts giving gentle bumps. The current weather shows under the place name. Choose "Clear skies" in the menu to switch it off.
-  - **Canlı hava durumu**: gerçek bulut örtüsünden bulutlar, görüş mesafesinden pus, yağmur ya da kar, fırtınada şimşek, seni sürükleyen gerçek rüzgâr ve hafif türbülans.
+- **Day and night**: the real sun lights the world at the real local time of wherever you fly, and the HUD shows that local time. Or start at sunrise, day, sunset or night (menu, or `T` in flight), and let time run at real speed, 1 min = 1 hour or 1 min = 10 hours to watch the sun set and rise. At night the sky turns black with stars and the moon, and cities light up: NASA's Black Marble glow from high up, and street-level points of light near the ground, made in the browser from the satellite tiles (built-up areas and roads glow, water, forest and fields stay dark).
+  - **Gece ve gündüz**: gerçek güneş, uçtuğun yerin gerçek yerel saatine göre dünyayı aydınlatır; yerel saat ekranda görünür. Ya da gün doğumu, gündüz, gün batımı veya gece ile başla (menü ya da uçarken `T`) ve zamanı gerçek hızda, 1 dk = 1 saat ya da 1 dk = 10 saat hızında akıt. Gece gökyüzü yıldızlarla kararır, şehirlerin ışıkları yanar.
+- **Live weather** from [Open-Meteo](https://open-meteo.com/) (free, no key): cumulus clouds around you from the real cloud cover, haze from visibility, rain or snow on the screen, lightning in thunderstorms. **Wind**: the real wind at your height (from the 10 m and 180 m winds, stronger higher up) drifts the aircraft, gusts and storms bring turbulence, light aircraft feel it far more than airliners, and on the runway the nose weathervanes into a crosswind. The HUD shows the weather, the local time and an arrow with where the wind blows relative to your nose. Choose "Clear skies" in the menu to switch it off.
+  - **Canlı hava durumu**: gerçek bulut örtüsünden bulutlar, görüş mesafesinden pus, yağmur ya da kar, fırtınada şimşek. Bulunduğun yükseklikteki gerçek rüzgâr uçağı sürükler, hamle ve fırtına türbülans yapar, hafif uçaklar daha çok etkilenir; ekrandaki ok rüzgârın burnuna göre yönünü gösterir.
 - Turkish and English UI
 
 ## Map modes and your Cesium ion token
@@ -126,7 +127,7 @@ The token is stored only in the player's browser (`localStorage`, or `sessionSto
 | Sound | `M` | Y |
 | Landing gear (manual override) | `G` | |
 | Minimap | `N` | |
-| Time of day (real / day / sunset / night) | `T` | |
+| Time of day (local / sunrise / day / sunset / night) | `T` | |
 | Restart after crash | `Enter` | A |
 
 Keys are read by physical position, so WASD works on AZERTY and other layouts too.

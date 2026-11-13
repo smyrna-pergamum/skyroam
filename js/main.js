@@ -14,7 +14,7 @@ import { Feel } from './feel.js';
 import { MiniMap } from './minimap.js';
 import { TouchControls } from './touch.js';
 import { Warnings } from './warnings.js';
-import { Sky, TIME_MODES } from './sky.js';
+import { Sky, TIME_MODES, TIME_SPEEDS } from './sky.js';
 import { Weather } from './weather.js';
 
 const $ = id => document.getElementById(id);
@@ -23,19 +23,20 @@ const PREFS_KEY = 'skyroam.prefs';
 const BEST_KEY = 'skyroam.best';
 
 const prefs = Object.assign(
-  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true, tod: 'auto', wx: 'live' },
+  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true, tod: 'auto', wx: 'live', tspeed: 1 },
   readJSON(PREFS_KEY, {}),
 );
 const savePrefs = () => writeJSON(PREFS_KEY, prefs);
 
-// Launch links from the website: play.html?lat=..&lon=..&name=..&ac=..&hdg=..&alt=..&cam=..&lang=..&tod=..&wx=..&fly=1
+// Launch links from the website: play.html?lat=..&lon=..&name=..&ac=..&hdg=..&alt=..&cam=..&lang=..&tod=..&tspeed=..&wx=..&fly=1
 // Values are validated and only change where you start; nothing is sent anywhere.
 const launch = (() => {
   const q = new URLSearchParams(location.search);
   const num = (k, lo, hi) => { const v = parseFloat(q.get(k)); return Number.isFinite(v) && v >= lo && v <= hi ? v : null; };
   const out = { fly: q.get('fly') === '1', cam: ['chase', 'cockpit', 'nose'].includes(q.get('cam')) ? q.get('cam') : null, shot: q.get('shot') === '1' };
   if (['tr', 'en'].includes(q.get('lang'))) prefs.lang = q.get('lang');
-  if (['auto', 'day', 'dusk', 'night'].includes(q.get('tod'))) prefs.tod = q.get('tod');
+  if (TIME_MODES.includes(q.get('tod'))) prefs.tod = q.get('tod');
+  if (TIME_SPEEDS.includes(+q.get('tspeed'))) prefs.tspeed = +q.get('tspeed');
   if (['live', 'clear'].includes(q.get('wx'))) prefs.wx = q.get('wx');
   const lat = num('lat', -85, 85), lon = num('lon', -180, 180);
   if (lat !== null && lon !== null) {
@@ -74,6 +75,7 @@ const weather = new Weather(viewer, $('wx'));
 weather.setMode(prefs.wx);
 weather.onChange = () => updateWxLabel();
 function updateWxLabel() { $('hWx').textContent = weather.label(getLang()); }
+const TOD_KEY = { auto: 'todAuto', sunrise: 'todSunrise', day: 'todDay', dusk: 'todDusk', night: 'todNight' };
 
 let mapMode = 'loading'; // 'lite' | 'ion' | 'google'
 
@@ -191,7 +193,7 @@ const preview = { start: null, h: 0, angle: 0.6, snap: {} };
 function setPreviewPlace(p) {
   place = p;
   const st = startFromPlace(p);
-  sky.setMode(prefs.tod, st.lon, st.lat);
+  sky.setMode(prefs.tod, st.lon, st.lat, prefs.tspeed);
   weather.refresh(st.lat, st.lon, true);
   preview.start = st;
   preview.h = st.alt + (ac?.startBonusAlt || 0);
@@ -200,8 +202,11 @@ function setPreviewPlace(p) {
   });
 }
 
+let windSens = 1;
 function setAircraft(resolved) {
   ac = resolved;
+  // light aircraft feel wind and bumps much more than airliners
+  windSens = Math.min(2.2, Math.max(0.45, 13 / (ac.base.spec?.span || ac.span || 12)));
   plane.build(ac);
   plane.visible = phase !== 'menu' ? camMode === 'chase' : true;
   course.radius = Math.max(45, ac.span * 1.6);
@@ -258,7 +263,7 @@ async function startFlight() {
     toast(t('ringGo'));
   }
   $('hPlace').textContent = `${place.name} · ${menu.aircraftName(ac)}`;
-  sky.setMode(prefs.tod, st.lon, st.lat);
+  sky.setMode(prefs.tod, st.lon, st.lat, prefs.tspeed);
   weather.refresh(st.lat, st.lon, true);
   updateWxLabel();
   setPhase('flying');
@@ -504,10 +509,22 @@ function skyFrame(dt) {
   }
   if ((skyTick % 600) === 0 && phase === 'flying') weather.refresh(p.lat, p.lon);
   weather.frame(dt, p.lon, p.lat, p.h, p.hdg, p.v, p.g, dark, phase === 'flying' && camMode !== 'nose');
+  if ((skyTick % 15) === 0) updateClockWind(p);
+}
+// HUD: local time at the place, and the wind relative to the nose (arrow shows where it blows to)
+const hClock = $('hClock'), hWind = $('hWind'), hWindArrow = $('hWindArrow'), hWindTxt = $('hWindTxt');
+function updateClockWind(p) {
+  hClock.textContent = `${t('hudLocal')} ${sky.localTime(p.lon, weather.utcOffset)}${sky.speed > 1 ? ` (×${sky.speed})` : ''}`;
+  const w = weather.windAt(state && phase !== 'menu' ? state.agl : 500);
+  const on = weather.now.live && w.speed >= 0.5;
+  hWind.hidden = !on;
+  if (!on) return;
+  hWindArrow.style.transform = `rotate(${((w.to - p.hdg) * 180 / Math.PI).toFixed(0)}deg)`;
+  hWindTxt.textContent = `${t('hudWind')} ${Math.round(w.speed * 3.6)} km/h`;
 }
 function applySkyPrefs() {
   const p = skyPoint();
-  if (p) sky.setMode(prefs.tod, p.lon, p.lat);
+  if (p) sky.setMode(prefs.tod, p.lon, p.lat, prefs.tspeed);
   if (weather.mode !== prefs.wx) { weather.setMode(prefs.wx); if (p) weather.refresh(p.lat, p.lon, true); }
   updateWxLabel();
 }
@@ -532,7 +549,8 @@ scene.preUpdate.addEventListener(() => {
   if (input.consume('timeOfDay')) {
     prefs.tod = TIME_MODES[(TIME_MODES.indexOf(prefs.tod) + 1) % TIME_MODES.length]; savePrefs();
     applySkyPrefs();
-    toast(t({ auto: 'todAuto', day: 'todDay', dusk: 'todDusk', night: 'todNight' }[prefs.tod]), 1400);
+    const p = skyPoint();
+    toast(`${t(TOD_KEY[prefs.tod])}${p ? ` · ${sky.localTime(p.lon, weather.utcOffset)}` : ''}`, 1600);
   }
   skyFrame(dt);
 
@@ -565,7 +583,7 @@ scene.preUpdate.addEventListener(() => {
   while (accumulator >= FIXED_DT && steps < 24) {
     snapshot(state, prevSnap);
     stepFlight(state, input.axes, FIXED_DT, groundAt(state.lon, state.lat), { assist: prefs.assist }, ac.phys);
-    weather.stepFlight(state, FIXED_DT);
+    weather.stepFlight(state, FIXED_DT, windSens);
     snapshot(state, curSnap);
     accumulator -= FIXED_DT;
     steps++;
