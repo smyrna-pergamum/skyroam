@@ -77,6 +77,11 @@
       </div>
     </div>
 
+    <div id="radarBox" class="radar glass" hidden>
+      <canvas id="radar" aria-label="Radar"></canvas>
+    </div>
+    <div id="tfcAlert" class="tfc-alert" hidden></div>
+
     <div id="warn" class="warn" hidden></div>
     <div class="hud-hint" data-i18n="hudHint"></div>
   </div>
@@ -221,6 +226,16 @@
         </div>
 
         <div class="field">
+          <span class="label" data-i18n="traffic"></span>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="traffic" value="off"><span data-i18n="tfcOff"></span></label>
+            <label><input type="radio" name="traffic" value="sim" checked><span data-i18n="tfcSim"></span></label>
+            <label><input type="radio" name="traffic" value="live"><span data-i18n="tfcLive"></span></label>
+          </div>
+          <p class="hint" id="tfcHint"></p>
+        </div>
+
+        <div class="field">
           <span class="label" data-i18n="tspeed"></span>
           <div class="seg" role="radiogroup">
             <label><input type="radio" name="tspeed" value="1" checked><span data-i18n="tspeed1"></span></label>
@@ -298,6 +313,13 @@
           <button id="forgetBtn" class="ghost" type="button" data-i18n="tokenForget"></button>
           <button id="saveTokenBtn" class="secondary" type="button" data-i18n="tokenSave"></button>
         </div>
+        <h3 data-i18n="tfcProxyTitle"></h3>
+        <p data-i18n-html="tfcProxyIntro"></p>
+        <div class="field">
+          <label for="tfcProxy" data-i18n="tfcProxyLabel"></label>
+          <input id="tfcProxy" type="url" autocomplete="off" spellcheck="false" placeholder="https://skyroam-traffic.yourname.workers.dev">
+        </div>
+        <p class="hint" data-i18n="tfcPrivacy"></p>
         <h3 data-i18n="controls"></h3>
         <table class="keys"><tbody id="keysTable"></tbody></table>
       </section>

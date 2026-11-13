@@ -370,3 +370,16 @@ body.touch .hud-top { display: none; }
 
 /* website screenshots: play.html?shot=1 hides the interface */
 body.shot #hud, body.shot .touch-ui, body.shot #toast { display: none !important; }
+
+/* ---------- radar scope and traffic alert ---------- */
+.radar { position: absolute; left: 14px; top: 250px; padding: 5px; border-radius: 50%; pointer-events: none; }
+.radar canvas { width: 176px; height: 176px; display: block; }
+.tfc-alert {
+  position: absolute; left: 50%; top: 132px; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px;
+  font-weight: 800; font-size: 15px; color: #1a1200; background: #ffb020; box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 7;
+}
+.tfc-alert.ra { background: #ff3b30; color: #fff; }
+@media (max-width: 640px) {
+  .radar { top: auto; bottom: 150px; left: 8px; }
+  .radar canvas { width: 120px; height: 120px; }
+}

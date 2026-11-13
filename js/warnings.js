@@ -3,6 +3,8 @@
 //   voice  : GPWS-style callouts spoken with the browser's speech synthesis
 //            PULL UP, SINK RATE, TOO LOW GEAR, BANK ANGLE, STALL, OVERSPEED
 //            and radio-altitude callouts on approach (100 … 10 ft) for glass-cockpit aircraft.
+//   TCAS   : TRAFFIC TRAFFIC for close traffic; CLIMB / DESCEND away from a very close aircraft,
+//            then CLEAR OF CONFLICT. Ground warnings come first; quiet near the ground, like the real one.
 // If speech synthesis isn't available, a caution chime plays instead of the voice.
 
 const FT = 3.28084;
@@ -26,7 +28,7 @@ export class Warnings {
   }
 
   reset() {
-    this.next = {}; this.lastAglFt = null; this.active = '';
+    this.next = {}; this.lastAglFt = null; this.active = ''; this.tcas = 0;
     this.sound.setAlarms({});
     try { speechSynthesis?.cancel(); } catch { /* ignore */ }
   }
@@ -49,6 +51,32 @@ export class Warnings {
       } catch { /* fall through to chime */ }
     }
     this.sound.caution();
+  }
+
+  /**
+   * TCAS voice. level: 0 none, 1 traffic advisory, 2 resolution advisory; dAlt: intruder height minus ours (m).
+   * Call every frame after update().
+   */
+  traffic(level, dAlt, s, ac) {
+    const prev = this.tcas || 0;
+    const agl = Number.isFinite(s.agl) ? s.agl : s.h;
+    // real TCAS: no voice below ~150 m, no climb/descend commands below ~300 m
+    if (!this.enabled || s.onGround || agl < 150) level = 0;
+    else if (level === 2 && agl < 300) level = 1;
+    this.tcas = level;
+    if (this.active) return;                       // stall, PULL UP etc. have priority
+    const now = performance.now() / 1000, fighter = ac.cockpit?.style === 'fighter';
+    if (level === 2) {
+      if (prev < 2) this.next.ta = 0;
+      if (dAlt > 0) this.say('ra', 'descend, descend', 4, now, fighter);
+      else this.say('ra', 'climb, climb', 4, now, fighter);
+    } else if (level === 1) {
+      if (prev === 0) this.next.ta = 0;
+      this.say('ta', 'traffic, traffic', 12, now, fighter);
+    } else if (prev === 2) {
+      this.next.ra = 0; this.next.clear = 0;
+      this.say('clear', 'clear of conflict', 5, now, fighter);
+    }
   }
 
   /**

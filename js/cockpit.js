@@ -545,7 +545,24 @@ function nd(g, x, y, s, d, nav, wind) {
   // range rings
   g.setLineDash([2, 5]); g.strokeStyle = 'rgba(244,246,248,.45)'; g.lineWidth = 1;
   g.beginPath(); g.arc(cx, cy, R * 0.5, Math.PI, TAU); g.stroke(); g.setLineDash([]);
-  text(g, '2.5', cx - R * 0.5 - s * 0.03, cy - s * 0.02, s * 0.03, CYN);
+  const range = nav ? 5000 : 20000;
+  text(g, String(range / 2000), cx - R * 0.5 - s * 0.03, cy - s * 0.02, s * 0.03, CYN);
+  // traffic (TCAS style): hollow diamond, filled amber when close, red when very close; height in hundreds of feet
+  for (const a of d.traffic || []) {
+    if (a.dist > range * 1.05) continue;
+    const brg = Math.atan2(a.de, a.dn) - d.hdg / R2D, k = R / range;
+    const px = cx + Math.sin(brg) * a.dist * k, py = cy - Math.cos(brg) * a.dist * k;
+    if (py > y + s * 0.97) continue;
+    const near = !a.ground && Math.abs(a.dAlt) < 300 && a.dist < 3000;
+    const col = near && a.dist < 1200 && Math.abs(a.dAlt) < 150 ? '#ff3b30' : near ? AMB : Math.abs(a.dAlt) < 360 && a.dist < 11000 ? WHT : CYN;
+    const q = s * 0.016;
+    g.save(); g.translate(px, py); g.rotate(Math.PI / 4);
+    if (near) { g.fillStyle = col; g.fillRect(-q, -q, q * 2, q * 2); } else { g.strokeStyle = col; g.lineWidth = 1.3; g.strokeRect(-q, -q, q * 2, q * 2); }
+    g.restore();
+    const rh = Math.round(a.dAlt / 30.48);
+    text(g, a.ground ? 'GND' : `${rh >= 0 ? '+' : '-'}${String(Math.abs(rh)).padStart(2, '0')}`, px, rh >= 0 ? py - s * 0.03 : py + s * 0.035, s * 0.03, col);
+    if (Math.abs(a.vs) > 2.5) text(g, a.vs > 0 ? '↑' : '↓', px + s * 0.03, py, s * 0.034, col);
+  }
   // track line
   g.strokeStyle = WHT; g.lineWidth = 1; line(g, cx, cy - s * 0.06, cx, cy - R);
   if (nav) {
@@ -572,7 +589,8 @@ function nd(g, x, y, s, d, nav, wind) {
     g.strokeStyle = WHT; g.lineWidth = 1.5; line(g, 0, s * 0.035, 0, -s * 0.035);
     poly(g, [[0, -s * 0.04], [-s * 0.012, -s * 0.02], [s * 0.012, -s * 0.02]], WHT); g.restore();
   }
-  text(g, '5 KM', x + s * 0.03, y + s * 0.95, s * 0.034, CYN, 'left');
+  text(g, `${range / 1000} KM`, x + s * 0.03, y + s * 0.95, s * 0.034, CYN, 'left');
+  if (d.traffic) text(g, 'TFC', x + s * 0.97, y + s * 0.95, s * 0.034, CYN, 'right');
   g.restore();
 }
 
@@ -652,6 +670,7 @@ export class Cockpit {
     this.n1 = [0];
     this.wet = null;     // { kind: 'rain' | 'snow' | 'mist', amount 0..1.3, dark }
     this.wind = null;
+    this.traffic = null; // nearby aircraft from Traffic.relative(), shown on the ND
     this.drops = [];
     this.sprites = { rain: dropSprite(false), snow: dropSprite(true) };
     this.bg = document.createElement('canvas');
@@ -851,7 +870,7 @@ export class Cockpit {
     }
     if (dt > 0) { this._acc += ((s.speed - this._lastSpd) / dt - this._acc) * Math.min(1, dt * 2); this._lastSpd = s.speed; }
     const d = {
-      s, inp, nav, gear: this.gear ?? 1, spd: s.speed * 3.6, alt: s.h, vs: s.vs, agl: s.agl, ground: s.ground, acc: this._acc,
+      s, inp, nav, traffic: this.traffic, gear: this.gear ?? 1, spd: s.speed * 3.6, alt: s.h, vs: s.vs, agl: s.agl, ground: s.ground, acc: this._acc,
       hdg: ((s.heading * R2D) % 360 + 360) % 360, pitch: s.pitch * R2D, roll: s.roll * R2D,
     };
     this.glass(dt, s.speed, s.onGround);

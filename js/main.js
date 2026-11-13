@@ -12,6 +12,7 @@ import { Cockpit } from './cockpit.js';
 import { statsOf, baseById } from './aircraft.js';
 import { Feel } from './feel.js';
 import { MiniMap } from './minimap.js';
+import { Traffic, RadarScope } from './traffic.js';
 import { TouchControls } from './touch.js';
 import { Warnings } from './warnings.js';
 import { Sky, TIME_MODES, TIME_SPEEDS } from './sky.js';
@@ -25,7 +26,7 @@ const PREFS_KEY = 'skyroam.prefs';
 const BEST_KEY = 'skyroam.best';
 
 const prefs = Object.assign(
-  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true, tod: 'auto', wx: 'live', tspeed: 1, windMan: false, windKmh: 30, windDir: 270 },
+  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true, tod: 'auto', wx: 'live', tspeed: 1, windMan: false, windKmh: 30, windDir: 270, traffic: 'sim', trafficProxy: '', radarRange: 20000 },
   readJSON(PREFS_KEY, {}),
 );
 const savePrefs = () => writeJSON(PREFS_KEY, prefs);
@@ -40,6 +41,7 @@ const launch = (() => {
   if (TIME_MODES.includes(q.get('tod'))) prefs.tod = q.get('tod');
   if (TIME_SPEEDS.includes(+q.get('tspeed'))) prefs.tspeed = +q.get('tspeed');
   if (WX_MODES.includes(q.get('wx'))) prefs.wx = q.get('wx');
+  if (['off', 'sim', 'live'].includes(q.get('traffic'))) prefs.traffic = q.get('traffic');
   if (['free', 'rings', 'takeoff', 'landing'].includes(q.get('mode'))) prefs.mode = q.get('mode');
   if (/^[A-Za-z0-9]{3,4}$/.test(q.get('ap') || '')) { out.ap = q.get('ap').toUpperCase(); out.rwy = (q.get('rwy') || '').toUpperCase().slice(0, 4); }
   const wk = num('wind', 0, 200);
@@ -177,6 +179,13 @@ let warnLabel = '';
 const minimap = new MiniMap($('mmCanvas'), { place: $('mmPlace'), coords: $('mmCoords'), heading: $('mmHeading') }, () => getLang());
 document.body.classList.toggle('minimap-off', !prefs.minimap);
 let topSpeed = 60;
+// Air traffic: simulated around you, or real aircraft through the player's own proxy. Radar scope on the HUD.
+const traffic = new Traffic(viewer, (la, lo) => (mapMode === 'lite' ? Promise.resolve(0) : terrainHeight(la, lo)));
+traffic.setMode(prefs.traffic, prefs.trafficProxy);
+traffic.onStatus = s => toast(t(s === 'live' ? 'tfcLiveOn' : 'tfcLiveFail'), s === 'live' ? 2500 : 6000);
+const radar = new RadarScope($('radar'));
+const RADAR_RANGES = [0, 20000, 50000];
+let trafficRel = [];
 // Landing gear: retracts automatically after take-off, extends near the ground. G overrides for a while.
 const gearCtl = { target: 1, manualUntil: 0, announced: 1 };
 sound.muted = prefs.muted;
@@ -323,7 +332,7 @@ function setPhase(p) {
   $('hud').hidden = p === 'menu';
   plane.visible = p === 'menu' || camMode === 'chase';
   applyCamView();
-  if (p === 'menu') { course.clear(); mission?.removeLights(); mission = null; $('missionPanel').hidden = true; setPreviewPlace(menu.getPlace()); }
+  if (p === 'menu') { traffic.clear(); course.clear(); mission?.removeLights(); mission = null; $('missionPanel').hidden = true; setPreviewPlace(menu.getPlace()); }
   lastFrame = performance.now();
 }
 
@@ -483,6 +492,30 @@ function updateHud(s, d) {
   }
 }
 
+// Traffic around the aircraft: 3D, radar scope on the HUD, and a traffic alert
+function updateTraffic(dt) {
+  const me = { lat: drawSnap.lat * 180 / Math.PI, lon: drawSnap.lon * 180 / Math.PI, h: state.h, ground: state.ground };
+  traffic.update(dt, prefs.traffic === 'off' ? null : me, true);
+  trafficRel = prefs.traffic === 'off' ? [] : traffic.relative(me);
+  const show = prefs.traffic !== 'off' && prefs.radarRange > 0 && camMode !== 'cockpit';
+  $('radarBox').hidden = !show;
+  let alert = 0, threat = null;
+  // the closest aircraft at a similar height decides the climb / descend command
+  for (const a of trafficRel) if (!a.ground && Math.abs(a.dAlt) < 300 && a.dist < 3000 && (!threat || a.dist < threat.dist)) threat = a;
+  if (show) {
+    radar.range = prefs.radarRange;
+    alert = radar.draw(dt, trafficRel, drawSnap.heading, traffic.source, getLang());
+  } else if (prefs.traffic !== 'off') {
+    for (const a of trafficRel) if (!a.ground && Math.abs(a.dAlt) < 300 && a.dist < 3000) alert = Math.max(alert, a.dist < 1200 && Math.abs(a.dAlt) < 150 ? 2 : 1);
+  }
+  if (state.onGround) alert = 0;
+  const el = $('tfcAlert');
+  el.hidden = !alert;
+  if (alert) { el.textContent = t(alert === 2 ? 'tfcRA' : 'tfcTA'); el.classList.toggle('ra', alert === 2); }
+  if (phase === 'flying') warnings.traffic(alert, threat ? threat.dAlt : 0, state, ac);
+  if (alert === 2) el.textContent = `${t('tfcRA')} · ${t(threat && threat.dAlt > 0 ? 'tfcDescend' : 'tfcClimb')}`;
+}
+
 let toastTimer = 0;
 function toast(msg, ms = 2500) {
   const el = $('toast');
@@ -598,6 +631,7 @@ function applySkyPrefs() {
   if (weather.mode !== prefs.wx) { weather.setMode(prefs.wx); if (p) weather.refresh(p.lat, p.lon, true); }
   weather.setManualWind(prefs.windMan ? prefs.windKmh : NaN, prefs.windDir);
   updateWxLabel();
+  traffic.setMode(prefs.traffic, prefs.trafficProxy);
 }
 
 scene.preUpdate.addEventListener(() => {
@@ -641,6 +675,13 @@ scene.preUpdate.addEventListener(() => {
   }
 
   if (input.consume('pause')) { setPhase('paused'); return; }
+  if (input.consume('radar')) {
+    if (prefs.traffic === 'off') toast(t('tfcIsOff'), 2000);
+    else {
+      prefs.radarRange = RADAR_RANGES[(RADAR_RANGES.indexOf(prefs.radarRange) + 1) % RADAR_RANGES.length]; savePrefs();
+      toast(prefs.radarRange ? `${t('radar')} ${prefs.radarRange / 1000} km` : t('radarOff'), 1200);
+    }
+  }
   if (input.consume('camera')) {
     camMode = CAM_MODES[(CAM_MODES.indexOf(camMode) + 1) % CAM_MODES.length];
     plane.visible = camMode === 'chase';
@@ -693,6 +734,7 @@ scene.preUpdate.addEventListener(() => {
   if (gameMode === 'rings' && phase === 'flying') courseTime = performance.now() - courseStart;
   updateHud(state, drawSnap);
   updateLever();
+  updateTraffic(dt);
   if (camMode === 'cockpit') {
     const view = Object.assign({}, state, drawSnap);
     // what lands on the windscreen: rain or snow below the cloud deck, moisture inside cloud
@@ -703,6 +745,7 @@ scene.preUpdate.addEventListener(() => {
     };
     cockpit.wind = weather.windAt(state.agl);
     cockpit.gear = plane.gear;
+    cockpit.traffic = prefs.traffic !== 'off' ? trafficRel : null;
     cockpit.draw(view, input.axes, dt, gameMode === 'rings' && course.active ? course.navInfo(state) : null);
   }
   sound.update(state.throttle, state.speed, phase === 'flying', ac.phys.engine);
@@ -732,4 +775,4 @@ setupMap().then(() => {
   }
 });
 
-window.skyroam = { viewer, sky, weather, sound, get state() { return state; }, get aircraft() { return ac; }, get mission() { return mission; } };
+window.skyroam = { viewer, sky, weather, sound, get state() { return state; }, get aircraft() { return ac; }, get mission() { return mission; }, traffic, radar, warnings };

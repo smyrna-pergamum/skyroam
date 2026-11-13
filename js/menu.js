@@ -427,6 +427,16 @@ export function initMenu(ctx) {
   $$('input[name=tod]').forEach(r => r.addEventListener('change', () => { prefs.tod = r.value; savePrefs(); ctx.onOptions(); }));
   $$('input[name=wx]').forEach(r => r.addEventListener('change', () => { prefs.wx = r.value; savePrefs(); ctx.onOptions(); }));
   $$('input[name=tspeed]').forEach(r => r.addEventListener('change', () => { prefs.tspeed = +r.value; savePrefs(); ctx.onOptions(); }));
+  $$('input[name=traffic]').forEach(r => r.addEventListener('change', () => { prefs.traffic = r.value; savePrefs(); updateTrafficHint(); ctx.onOptions(); }));
+  $('tfcProxy').addEventListener('change', e => {
+    const v = e.target.value.trim().replace(/\/+$/, '');
+    if (v && !/^https:\/\/[^\s/?#]+(\/[^\s?#]*)?$/.test(v) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/[^\s?#]*)?$/.test(v)) { ctx.toast(t('tfcProxyBad'), 3500); return; }
+    prefs.trafficProxy = v; e.target.value = v; savePrefs(); updateTrafficHint(); ctx.onOptions();
+  });
+  function updateTrafficHint() {
+    const m = prefs.traffic || 'sim';
+    $('tfcHint').textContent = t(m === 'off' ? 'tfcHintOff' : m === 'sim' ? 'tfcHintSim' : prefs.trafficProxy ? 'tfcHintLive' : 'tfcHintNoProxy');
+  }
   $('optWindMan').addEventListener('change', e => { prefs.windMan = e.target.checked; savePrefs(); updateWindBox(); ctx.onOptions(); });
   $('windKmh').addEventListener('input', e => { prefs.windKmh = +e.target.value; savePrefs(); updateWindBox(); ctx.onOptions(); });
   $('windDir').addEventListener('input', e => { prefs.windDir = +e.target.value; savePrefs(); updateWindBox(); ctx.onOptions(); });
@@ -498,6 +508,9 @@ export function initMenu(ctx) {
     $$('input[name=tod]').forEach(r => { r.checked = r.value === (prefs.tod || 'auto'); });
     $$('input[name=wx]').forEach(r => { r.checked = r.value === (prefs.wx || 'live'); });
     $$('input[name=tspeed]').forEach(r => { r.checked = +r.value === (prefs.tspeed || 1); });
+    $$('input[name=traffic]').forEach(r => { r.checked = r.value === (prefs.traffic || 'sim'); });
+    $('tfcProxy').value = prefs.trafficProxy || '';
+    updateTrafficHint();
     $('optWindMan').checked = !!prefs.windMan;
     $('windKmh').value = prefs.windKmh ?? 30;
     $('windDir').value = prefs.windDir ?? 270;

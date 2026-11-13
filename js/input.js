@@ -18,9 +18,10 @@ const BINDINGS = {
   minimap:      ['KeyN'],
   gear:         ['KeyG'],
   timeOfDay:    ['KeyT'],
+  radar:        ['KeyV'],
   restart:      ['Enter', 'NumpadEnter'],
 };
-const EDGE = new Set(['camera', 'pause', 'mute', 'restart', 'minimap', 'gear', 'timeOfDay']);
+const EDGE = new Set(['camera', 'pause', 'mute', 'restart', 'minimap', 'gear', 'timeOfDay', 'radar']);
 
 export const KEY_HELP = [
   ['kPitch', ['W', 'S', '↑', '↓']],
@@ -34,6 +35,7 @@ export const KEY_HELP = [
   ['kGear', ['G']],
   ['kMinimap', ['N']],
   ['kTime', ['T']],
+  ['kRadar', ['V']],
   ['kRestart', ['Enter']],
 ];
 

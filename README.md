@@ -41,6 +41,7 @@ play.html?fly=1&lat=41.04&lon=29.02&name=Istanbul&ac=a320neo&hdg=20&alt=700&cam=
 | `wx` | weather: `live`, `clear`, `cloudy`, `overcast`, `rain`, `snow`, `storm` or `fog` |
 | `wind`, `wdir` | wind set by hand: speed in km/h (0–200) and the direction it blows from in degrees |
 | `mode` | `free`, `rings`, `takeoff` or `landing` |
+| `traffic` | air traffic: `off`, `sim` (simulated) or `live` (needs your proxy, see below) |
 | `ap`, `rwy` | start at an airport (ICAO or IATA code, e.g. `LTFM` or `IST`) on a runway (e.g. `35L`); without `rwy` the longest runway is used |
 | `fly=1` | skip the menu and take off at once (without it, the menu opens with these choices selected) |
 
@@ -70,6 +71,14 @@ Values are checked and only change where you start; the address bar is cleaned a
   - Take-off: from the threshold, stay on the centreline, rotate and climb to 120 m; scored on time and centreline deviation
   - Landing: start 9 km out on a 3° glide path; the HUD shows distance, glide path and centreline deviation, and PAPI lights beside the runway turn white and red like the real ones. Touch down on the runway, then brake to a stop: scored out of 100 for a soft touchdown, the aim point and the centreline
   - Runway edge, threshold and end lights for night landings
+- **Air traffic and radar**:
+  - Simulated traffic (default): aircraft take off from and land on the real runways of the airports near you, and airliners pass overhead at different levels. Nothing is sent anywhere.
+  - Live traffic: real aircraft from [adsb.lol](https://adsb.lol/) (ADS-B), through a small proxy you run on your own free Cloudflare account (see [Live air traffic](#live-air-traffic)). If it can't connect, the simulation takes over.
+  - Radar scope on the HUD: heading-up, rotating sweep, callsigns and height difference in hundreds of feet with climb/descent arrows. `V` switches between 20 km, 50 km and off.
+  - In the glass cockpit, traffic shows on the navigation display like a real TCAS (20 km without a ring course).
+  - Nearby aircraft appear as 3D models, farther ones as dots with their callsign.
+  - **Spoken alert** (TCAS style): "traffic, traffic" when an aircraft is within 3 km and 300 m of your height; "climb, climb" or "descend, descend" away from it when it is within 1.2 km and 150 m, then "clear of conflict". Quiet below 150 m above the ground; ground warnings (PULL UP, stall) come first. Uses the cockpit warnings setting.
+  - **Hava trafiği ve radar**: yakındaki havalimanlarının gerçek pistlerinden kalkan ve inen uçaklar (simülasyon) ya da kendi proxy'n üzerinden gerçek uçaklar (canlı). HUD'da dönen radar, kokpitte TCAS gösterimi, yakın uçaklar 3B model. Çok yaklaşan uçakta sesli ikaz: "traffic, traffic", sonra "climb" ya da "descend".
   - **Kalkış ve iniş görevleri**: gerçek havalimanlarında. Kalkışta merkez hattında kalıp 120 m'ye tırman; inişte 9 km uzaktan 3° süzülüş yolunda gel, PAPI ışıklarıyla yolu koru, piste yumuşak in ve dur. Puan teker koyma hızına, hedef noktaya ve merkez hattına göre verilir.
 - Arcade flight model: stalls, coordinated turns, landing and crashing, fixed 120 Hz physics
 - **Cockpit interior** with live instruments, different per aircraft class, modelled on real cockpits:
@@ -116,12 +125,24 @@ How to get a token:
 
 The token is stored only in the player's browser (`localStorage`, or `sessionStorage` if "remember" is off) and is only sent to Cesium's servers. Treat it like a password: don't share it or show it in screenshots.
 
+## Live air traffic
+
+Browsers block the free flight-tracking services when they are called from another site (no CORS headers), and the game has no server. So live traffic comes through a tiny proxy that **you** run on your own account. It has no keys or secrets and stores nothing.
+
+1. Create a free account at [dash.cloudflare.com](https://dash.cloudflare.com/sign-up).
+2. **Workers & Pages → Create → Create Worker**, name it (e.g. `skyroam-traffic`) and press **Deploy**.
+3. **Edit code**, replace everything with [`tools/traffic-proxy.js`](tools/traffic-proxy.js), press **Deploy**.
+4. Copy its address (`https://skyroam-traffic.<you>.workers.dev`) into the game: **Settings → Live air traffic**, then pick **Air traffic → Live** on the Fly tab.
+
+The proxy only answers `GET /v2/point/{lat}/{lon}/{nm}` (at most 100 nm), only for the official SkyRoam site and `localhost`, and caches answers for 5 seconds. If you host the game elsewhere, add a Worker variable `ALLOWED_ORIGINS` with your site (comma-separated, e.g. `https://you.github.io`). The free Workers plan allows 100,000 requests a day; one player uses about 360 an hour.
+
 ## Privacy
 
 - City search sends only the typed place name to the [Open-Meteo geocoding API](https://open-meteo.com/en/docs/geocoding-api).
 - "Take off from where I am" uses the browser's location permission; the position stays in the browser.
 - The minimap loads map tiles from tile.openstreetmap.org. About every 20 seconds, and only after you have moved a few kilometres, it sends your rounded position to [Nominatim](https://nominatim.org/) to show the place name. This follows the [OSM tile](https://operations.osmfoundation.org/policies/tiles/) and [Nominatim](https://operations.osmfoundation.org/policies/nominatim/) usage policies.
 - Live weather sends the aircraft's position rounded to about 1 km to the [Open-Meteo forecast API](https://open-meteo.com/en/docs) when you take off, then again every 15 minutes or after 40 km. Pick any other weather to send nothing.
+- Simulated air traffic sends nothing. Live air traffic sends your position rounded to about 1 km to your own proxy and from there to [adsb.lol](https://adsb.lol/) every 10 seconds while you fly.
 - At night the game loads Esri satellite tiles a second time to draw street lights, and NASA GIBS night tiles.
 - Settings, custom aircraft and best times are kept in `localStorage`. There is no server and no tracking.
 - The website loads map tiles from Esri and NASA GIBS, its font from Google Fonts, and sends a typed town name to Open-Meteo only when you press Take off. It has no analytics; your language choice is kept in `localStorage`.
@@ -140,6 +161,7 @@ The token is stored only in the player's browser (`localStorage`, or `sessionSto
 | Sound | `M` | Y |
 | Landing gear (manual override) | `G` | |
 | Minimap | `N` | |
+| Radar range (20 km / 50 km / off) | `V` | |
 | Time of day (local / sunrise / day / sunset / night) | `T` | |
 | Restart after crash | `Enter` | A |
 
@@ -175,12 +197,13 @@ js/sky.js         day and night: sun lighting, time of day, stars, city and stre
 js/weather.js     weather (live from Open-Meteo or picked): clouds, overcast deck, haze, rain, snow, wind, turbulence
 js/airports.js    airport list loader, search, nearest airports, runway geometry
 js/missions.js    take-off and landing missions, runway and PAPI lights
+js/traffic.js     air traffic (simulated or live), 3D display, radar scope
 js/menu.js        menu tabs, place picker + search + coordinates, aircraft grid, hangar, welcome
 js/cockpit.js     cockpit interiors on a canvas overlay (GA, glass, fighter, glider), rain on the windscreen
 js/fleet.js       101 real aircraft: dimensions, wing/tail/engine layout, speeds, livery
 js/fleetgen.js    turns a fleet entry into a 3D model (lofted meshes) and a flight model
 js/aircraft.js    roster, mods (hangar), old-id aliases
-js/warnings.js    cockpit warnings: stall horn / shaker, clacker, GPWS voice callouts
+js/warnings.js    cockpit warnings: stall horn / shaker, clacker, GPWS and TCAS voice callouts
 js/feel.js        speed feel: dynamic FOV, camera lag, shake, speed lines
 js/minimap.js     OpenStreetMap minimap with compass
 js/touch.js       two-thumb touch controls
@@ -193,6 +216,7 @@ js/audio.js       WebAudio: recorded loops + synthesiser, chime, crash, gear
 js/storage.js     safe localStorage helpers, token storage
 js/i18n.js        Turkish / English strings
 sounds/           Pixabay sound effects (see credits)
+tools/traffic-proxy.js  Cloudflare Worker for live air traffic (each player runs their own)
 data/airports.json  airports and runways (OurAirports, public domain), loaded only when needed
 models/           optional .glb models that replace the generated one (Hürjet)
 site/img/         screenshot from the game (website fallback and preview image)
@@ -204,7 +228,7 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
 
 - Tilt steering for phones
 - Collision with 3D buildings
-- Taxiways, ATC and approach lighting systems
+- Taxiways, ATC, approach lighting systems and taxiing traffic
 - Daily route challenge, multiplayer ghosts
 
 ## Credits and data terms
@@ -215,6 +239,7 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
 - City search: [Open-Meteo Geocoding API](https://open-meteo.com/) (data from GeoNames, CC BY 4.0)
 - Weather: [Open-Meteo Forecast API](https://open-meteo.com/) (CC BY 4.0)
 - Airports and runways: [OurAirports](https://ourairports.com/data/) (public domain)
+- Live air traffic: [adsb.lol](https://adsb.lol/) (ODbL), only when you set up your own proxy
 - City lights (game and website): [NASA Black Marble](https://earthobservatory.nasa.gov/features/NightLights) via NASA GIBS (public domain)
 - Minimap: map tiles and place names © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL), via tile.openstreetmap.org and Nominatim
 - Aircraft models are generated in code from public dimensions for this project. They are simplified likenesses, not official models. The Hürjet `.glb` was built for SkyRoam in Blender from public views and dimensions; it is an approximation, not TUSAŞ's CAD model. Aircraft names are their makers' trademarks and are used only to identify the types.
