@@ -110,6 +110,10 @@ export function stepFlight(s, inp, dt, groundH, opts, ph) {
   if (s.ground === undefined) { s.agl = Infinity; return; }
 
   s.agl = s.h - s.ground - ph.gearH;
+  // Wheels follow the ground while rolling: the terrain under the runway can read a few metres lower
+  // when map tiles refine, which must not count as a lift-off (and then a hard landing). Only lifting
+  // off at flying speed, or rolling off a real drop, leaves the ground.
+  if (s.onGround && s.agl > 0 && (s.speed < ph.vRotate || (vu <= 0.5 && s.agl < 3))) s.agl = 0;
   if (s.agl <= 0) {
     if (!s.onGround) {
       const ok = vu > ph.maxSink && Math.abs(s.roll) < MAX_BANK && s.pitch > -0.15 && s.speed < ph.maxLand;
