@@ -110,6 +110,8 @@ kbd {
 .hud-top { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; }
 .heading { font-size: 22px; font-weight: 700; padding: 4px 14px; border-radius: 10px; background: var(--glass); border: 1px solid var(--line); }
 .mode-badge { margin-top: 6px; font-size: 11px; color: var(--muted); }
+#hPlace, #hWx { color: #e8eef7; text-shadow: 0 1px 3px rgba(0,0,0,.85), 0 0 10px rgba(0,0,0,.5); }
+#hWx:empty { display: none; }
 
 .hud-left { position: absolute; left: 14px; top: 14px; padding: 10px 14px; min-width: 150px; }
 .gauge { display: grid; grid-template-columns: 52px 1fr auto; align-items: baseline; gap: 6px; margin: 3px 0; }
@@ -268,6 +270,7 @@ input[type=number] {
 }
 
 /* ---------- v4: speed feel, minimap ---------- */
+#wx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }
 #feel { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; }
 .minimap {
   position: absolute; right: 14px; bottom: 14px; width: 176px; padding: 6px 6px 8px;

@@ -26,7 +26,7 @@ Tasarım, yeniden kullanılabilir bir yapay zekâ tasarım becerisi olarak da ya
 Any page can open the game at a place and in an aircraft. / Herhangi bir sayfa oyunu bir yerde ve bir uçakla açabilir.
 
 ```
-play.html?fly=1&lat=41.04&lon=29.02&name=Istanbul&ac=a320neo&hdg=20&alt=700&cam=cockpit&lang=tr
+play.html?fly=1&lat=41.04&lon=29.02&name=Istanbul&ac=a320neo&hdg=20&alt=700&cam=cockpit&lang=tr&tod=night
 ```
 
 | param | meaning |
@@ -36,6 +36,8 @@ play.html?fly=1&lat=41.04&lon=29.02&name=Istanbul&ac=a320neo&hdg=20&alt=700&cam=
 | `hdg`, `alt` | heading in degrees, altitude in metres |
 | `cam` | `chase`, `cockpit` or `nose` |
 | `lang` | `tr` or `en` |
+| `tod` | time of day: `auto` (real time at the place), `day`, `dusk` or `night` |
+| `wx` | weather: `live` or `clear` |
 | `fly=1` | skip the menu and take off at once (without it, the menu opens with these choices selected) |
 
 Values are checked and only change where you start; the address bar is cleaned after loading.
@@ -73,6 +75,10 @@ Values are checked and only change where you start; the address bar is cleaned a
 - Keyboard, gamepad and touch
 - Recorded engine, turbine, wind, crash and landing-gear sounds (from Pixabay) layered over a small synthesiser
 - **Cockpit warnings** modelled on real aircraft: stall horn (light aircraft) or stick shaker (jets), overspeed clacker, and GPWS-style voice callouts (PULL UP, SINK RATE, TOO LOW GEAR, BANK ANGLE, STALL) plus radio-altitude callouts on landing (100 … 10 ft) in glass-cockpit aircraft. The voice uses the browser's speech synthesis; the tones are synthesised. You can switch the warnings off in the menu.
+- **Day and night**: the real sun lights the world, so the time of day is true for wherever you fly; or pick day, sunset or night in the menu (`T` cycles it in flight). At night the sky turns black with stars and the moon, and cities light up: NASA's Black Marble glow from high up, and street-level points of light near the ground, made in the browser from the satellite tiles (built-up areas and roads glow, water, forest and fields stay dark).
+  - **Gece ve gündüz**: gerçek güneş dünyayı aydınlatır, saat uçtuğun yere göre doğrudur; ya da menüden gündüz, gün batımı veya gece seç (uçarken `T`). Gece gökyüzü yıldızlarla kararır, şehirlerin ışıkları yanar.
+- **Live weather** from [Open-Meteo](https://open-meteo.com/) (free, no key): cumulus clouds around you from the real cloud cover, haze from visibility, rain or snow on the screen, lightning in thunderstorms, the real wind drifting you and gusts giving gentle bumps. The current weather shows under the place name. Choose "Clear skies" in the menu to switch it off.
+  - **Canlı hava durumu**: gerçek bulut örtüsünden bulutlar, görüş mesafesinden pus, yağmur ya da kar, fırtınada şimşek, seni sürükleyen gerçek rüzgâr ve hafif türbülans.
 - Turkish and English UI
 
 ## Map modes and your Cesium ion token
@@ -101,6 +107,8 @@ The token is stored only in the player's browser (`localStorage`, or `sessionSto
 - City search sends only the typed place name to the [Open-Meteo geocoding API](https://open-meteo.com/en/docs/geocoding-api).
 - "Take off from where I am" uses the browser's location permission; the position stays in the browser.
 - The minimap loads map tiles from tile.openstreetmap.org. About every 20 seconds, and only after you have moved a few kilometres, it sends your rounded position to [Nominatim](https://nominatim.org/) to show the place name. This follows the [OSM tile](https://operations.osmfoundation.org/policies/tiles/) and [Nominatim](https://operations.osmfoundation.org/policies/nominatim/) usage policies.
+- Live weather sends the aircraft's position rounded to about 1 km to the [Open-Meteo forecast API](https://open-meteo.com/en/docs) when you take off, then again every 15 minutes or after 40 km. Choose "Clear skies" to send nothing.
+- At night the game loads Esri satellite tiles a second time to draw street lights, and NASA GIBS night tiles.
 - Settings, custom aircraft and best times are kept in `localStorage`. There is no server and no tracking.
 - The website loads map tiles from Esri and NASA GIBS, its font from Google Fonts, and sends a typed town name to Open-Meteo only when you press Take off. It has no analytics; your language choice is kept in `localStorage`.
 
@@ -118,6 +126,7 @@ The token is stored only in the player's browser (`localStorage`, or `sessionSto
 | Sound | `M` | Y |
 | Landing gear (manual override) | `G` | |
 | Minimap | `N` | |
+| Time of day (real / day / sunset / night) | `T` | |
 | Restart after crash | `Enter` | A |
 
 Keys are read by physical position, so WASD works on AZERTY and other layouts too.
@@ -148,6 +157,8 @@ site/world.css    website styles (site/tokens.css, site/base.css underneath)
 play.html         the game: welcome screen, menu (flight / aircraft / settings), HUD
 style.css         game UI and HUD styles
 js/main.js        viewer, map modes, game loop, camera, HUD, launch links
+js/sky.js         day and night: sun lighting, time of day, stars, city and street lights
+js/weather.js     live weather (Open-Meteo): clouds, haze, rain, snow, wind, turbulence
 js/menu.js        menu tabs, place picker + search + coordinates, aircraft grid, hangar, welcome
 js/cockpit.js     cockpit interiors drawn on a canvas overlay (GA, glass, fighter, glider)
 js/fleet.js       101 real aircraft: dimensions, wing/tail/engine layout, speeds, livery
@@ -185,7 +196,8 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
 - 3D mode: Cesium World Terrain, Bing Maps imagery and Cesium OSM Buildings via Cesium ion (© OpenStreetMap contributors)
 - Lite mode: Esri World Imagery tiles (© Esri, Maxar, Earthstar Geographics). Check [Esri's terms](https://www.esri.com/en-us/legal/terms/full-master-agreement) before heavy or commercial use.
 - City search: [Open-Meteo Geocoding API](https://open-meteo.com/) (data from GeoNames, CC BY 4.0)
-- Website city lights: [NASA Black Marble](https://earthobservatory.nasa.gov/features/NightLights) via NASA GIBS (public domain)
+- Weather: [Open-Meteo Forecast API](https://open-meteo.com/) (CC BY 4.0)
+- City lights (game and website): [NASA Black Marble](https://earthobservatory.nasa.gov/features/NightLights) via NASA GIBS (public domain)
 - Minimap: map tiles and place names © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL), via tile.openstreetmap.org and Nominatim
 - Aircraft models are generated in code from public dimensions for this project. They are simplified likenesses, not official models. The Hürjet `.glb` was built for SkyRoam in Blender from public views and dimensions; it is an approximation, not TUSAŞ's CAD model. Aircraft names are their makers' trademarks and are used only to identify the types.
 - Sounds from [Pixabay](https://pixabay.com/sound-effects/) under the [Pixabay Content License](https://pixabay.com/service/license-summary/):

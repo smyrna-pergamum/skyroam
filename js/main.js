@@ -14,6 +14,8 @@ import { Feel } from './feel.js';
 import { MiniMap } from './minimap.js';
 import { TouchControls } from './touch.js';
 import { Warnings } from './warnings.js';
+import { Sky, TIME_MODES } from './sky.js';
+import { Weather } from './weather.js';
 
 const $ = id => document.getElementById(id);
 const RING_COUNT = 12;
@@ -21,18 +23,20 @@ const PREFS_KEY = 'skyroam.prefs';
 const BEST_KEY = 'skyroam.best';
 
 const prefs = Object.assign(
-  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true },
+  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true, tod: 'auto', wx: 'live' },
   readJSON(PREFS_KEY, {}),
 );
 const savePrefs = () => writeJSON(PREFS_KEY, prefs);
 
-// Launch links from the website: play.html?lat=..&lon=..&name=..&ac=..&hdg=..&alt=..&cam=..&lang=..&fly=1
+// Launch links from the website: play.html?lat=..&lon=..&name=..&ac=..&hdg=..&alt=..&cam=..&lang=..&tod=..&wx=..&fly=1
 // Values are validated and only change where you start; nothing is sent anywhere.
 const launch = (() => {
   const q = new URLSearchParams(location.search);
   const num = (k, lo, hi) => { const v = parseFloat(q.get(k)); return Number.isFinite(v) && v >= lo && v <= hi ? v : null; };
   const out = { fly: q.get('fly') === '1', cam: ['chase', 'cockpit', 'nose'].includes(q.get('cam')) ? q.get('cam') : null, shot: q.get('shot') === '1' };
   if (['tr', 'en'].includes(q.get('lang'))) prefs.lang = q.get('lang');
+  if (['auto', 'day', 'dusk', 'night'].includes(q.get('tod'))) prefs.tod = q.get('tod');
+  if (['live', 'clear'].includes(q.get('wx'))) prefs.wx = q.get('wx');
   const lat = num('lat', -85, 85), lon = num('lon', -180, 180);
   if (lat !== null && lon !== null) {
     const name = (q.get('name') || '').replace(/[<>]/g, '').slice(0, 80) || `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
@@ -65,6 +69,11 @@ scene.globe.tileCacheSize = 300;
 scene.fog.enabled = true;
 scene.skyAtmosphere.show = true;
 viewer.camera.frustum.near = 0.5;
+const sky = new Sky(viewer);
+const weather = new Weather(viewer, $('wx'));
+weather.setMode(prefs.wx);
+weather.onChange = () => updateWxLabel();
+function updateWxLabel() { $('hWx').textContent = weather.label(getLang()); }
 
 let mapMode = 'loading'; // 'lite' | 'ion' | 'google'
 
@@ -182,6 +191,8 @@ const preview = { start: null, h: 0, angle: 0.6, snap: {} };
 function setPreviewPlace(p) {
   place = p;
   const st = startFromPlace(p);
+  sky.setMode(prefs.tod, st.lon, st.lat);
+  weather.refresh(st.lat, st.lon, true);
   preview.start = st;
   preview.h = st.alt + (ac?.startBonusAlt || 0);
   terrainHeight(st.lat, st.lon).then(g => {
@@ -206,7 +217,7 @@ const menu = initMenu({
   toast: (m, ms) => toast(m, ms),
   onPlaceChange: p => setPreviewPlace(p),
   onAircraftChange: a => setAircraft(a),
-  onOptions: () => { input.invert = prefs.invert; },
+  onOptions: () => { input.invert = prefs.invert; applySkyPrefs(); },
   onStart: () => startFlight(),
   onResume: () => { sound.start(); setPhase('flying'); },
 });
@@ -247,6 +258,9 @@ async function startFlight() {
     toast(t('ringGo'));
   }
   $('hPlace').textContent = `${place.name} · ${menu.aircraftName(ac)}`;
+  sky.setMode(prefs.tod, st.lon, st.lat);
+  weather.refresh(st.lat, st.lon, true);
+  updateWxLabel();
   setPhase('flying');
 }
 
@@ -474,6 +488,30 @@ function updateLever() {
 // ---------------------------------------------------------------------------
 const planePos = new C3();
 
+// Where the sky is looked at: the aircraft in flight, the preview point in the menu.
+function skyPoint() {
+  if (state && phase !== 'menu') return { lon: state.lon * 180 / Math.PI, lat: state.lat * 180 / Math.PI, h: state.h, hdg: state.heading, v: state.speed, g: state.ground };
+  const st = preview.start;
+  return st ? { lon: st.lon, lat: st.lat, h: preview.h, hdg: st.heading * Math.PI / 180, v: 0, g: undefined } : null;
+}
+let skyTick = 0, dark = 0;
+function skyFrame(dt) {
+  const p = skyPoint();
+  if (!p) return;
+  if ((skyTick++ % 10) === 0) {
+    dark = sky.update(p.lon, p.lat, weather.now.live ? weather.now.cloud : 0);
+    document.body.classList.toggle('is-night', dark > 0.6);
+  }
+  if ((skyTick % 600) === 0 && phase === 'flying') weather.refresh(p.lat, p.lon);
+  weather.frame(dt, p.lon, p.lat, p.h, p.hdg, p.v, p.g, dark, phase === 'flying' && camMode !== 'nose');
+}
+function applySkyPrefs() {
+  const p = skyPoint();
+  if (p) sky.setMode(prefs.tod, p.lon, p.lat);
+  if (weather.mode !== prefs.wx) { weather.setMode(prefs.wx); if (p) weather.refresh(p.lat, p.lon, true); }
+  updateWxLabel();
+}
+
 scene.preUpdate.addEventListener(() => {
   const now = performance.now();
   const dt = Math.min((now - lastFrame) / 1000, 0.1);
@@ -490,6 +528,13 @@ scene.preUpdate.addEventListener(() => {
     sound.setMuted(prefs.muted);
     toast(t(prefs.muted ? 'soundOff' : 'soundOn'), 1200);
   }
+
+  if (input.consume('timeOfDay')) {
+    prefs.tod = TIME_MODES[(TIME_MODES.indexOf(prefs.tod) + 1) % TIME_MODES.length]; savePrefs();
+    applySkyPrefs();
+    toast(t({ auto: 'todAuto', day: 'todDay', dusk: 'todDusk', night: 'todNight' }[prefs.tod]), 1400);
+  }
+  skyFrame(dt);
 
   if (phase === 'menu') { feel.draw(dt, 0, 0, false); menuPreview(dt); sound.update(0, 0, false, 'prop'); return; }
 
@@ -520,6 +565,7 @@ scene.preUpdate.addEventListener(() => {
   while (accumulator >= FIXED_DT && steps < 24) {
     snapshot(state, prevSnap);
     stepFlight(state, input.axes, FIXED_DT, groundAt(state.lon, state.lat), { assist: prefs.assist }, ac.phys);
+    weather.stepFlight(state, FIXED_DT);
     snapshot(state, curSnap);
     accumulator -= FIXED_DT;
     steps++;
@@ -567,6 +613,7 @@ if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').ma
 
 setPhase('menu');
 setupMap().then(() => {
+  sky.attach();
   menu.updateMapStatus(); setPreviewPlace(menu.getPlace());
   if (launch.fly) {
     $('welcome').hidden = true;
@@ -580,4 +627,4 @@ setupMap().then(() => {
   }
 });
 
-window.skyroam = { viewer, get state() { return state; }, get aircraft() { return ac; } };
+window.skyroam = { viewer, sky, weather, get state() { return state; }, get aircraft() { return ac; } };

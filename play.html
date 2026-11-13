@@ -13,6 +13,7 @@
 </head>
 <body>
   <div id="cesium"></div>
+  <canvas id="wx" aria-hidden="true"></canvas>
   <canvas id="feel"></canvas>
   <canvas id="cockpit" hidden></canvas>
 
@@ -21,6 +22,7 @@
     <div class="hud-top">
       <div id="hHeading" class="heading">000°</div>
       <div id="hPlace" class="mode-badge"></div>
+      <div id="hWx" class="mode-badge"></div>
     </div>
 
     <div class="hud-left glass">
@@ -165,6 +167,25 @@
             <label><input type="radio" name="mode" value="rings"><span data-i18n="modeRings"></span></label>
           </div>
           <p class="hint" id="modeHint"></p>
+        </div>
+
+        <div class="field">
+          <span class="label" data-i18n="tod"></span>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="tod" value="auto" checked><span data-i18n="todAuto"></span></label>
+            <label><input type="radio" name="tod" value="day"><span data-i18n="todDay"></span></label>
+            <label><input type="radio" name="tod" value="dusk"><span data-i18n="todDusk"></span></label>
+            <label><input type="radio" name="tod" value="night"><span data-i18n="todNight"></span></label>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label" data-i18n="wx"></span>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="wx" value="live" checked><span data-i18n="wxLive"></span></label>
+            <label><input type="radio" name="wx" value="clear"><span data-i18n="wxClear"></span></label>
+          </div>
+          <p class="hint" data-i18n="wxHint"></p>
         </div>
 
         <div class="field row">
