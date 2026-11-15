@@ -9,6 +9,7 @@ import { EngineSound } from './audio.js';
 import { readJSON, writeJSON, getToken } from './storage.js';
 import { initMenu } from './menu.js';
 import { Cockpit } from './cockpit.js';
+import { Cockpit3D } from './cockpit3d.js';
 import { statsOf, baseById } from './aircraft.js';
 import { Feel } from './feel.js';
 import { MiniMap } from './minimap.js';
@@ -26,7 +27,7 @@ const PREFS_KEY = 'skyroam.prefs';
 const BEST_KEY = 'skyroam.best';
 
 const prefs = Object.assign(
-  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true, tod: 'auto', wx: 'live', tspeed: 1, windMan: false, windKmh: 30, windDir: 270, traffic: 'sim', trafficProxy: '', radarRange: 20000 },
+  { lang: null, mode: 'free', invert: false, assist: true, google3d: false, muted: false, aircraft: 'b:cessna-172', acCat: 'all', tab: 'fly', calm: false, minimap: true, warnings: true, tod: 'auto', wx: 'live', tspeed: 1, windMan: false, windKmh: 30, windDir: 270, traffic: 'sim', trafficProxy: '', radarRange: 20000, cockpit3d: true },
   readJSON(PREFS_KEY, {}),
 );
 const savePrefs = () => writeJSON(PREFS_KEY, prefs);
@@ -172,6 +173,9 @@ const plane = new PlaneModel(scene);
 const course = new RingCourse(viewer);
 const sound = new EngineSound();
 const cockpit = new Cockpit($('cockpit'));
+const cockpit3d = new Cockpit3D(scene);
+cockpit3d.enabled = prefs.cockpit3d !== false;
+cockpit3d.onReady = () => applyCamView();
 const feel = new Feel($('feel'));
 const touch = new TouchControls(input, $('hud'));
 const warnings = new Warnings(sound);
@@ -229,6 +233,8 @@ function setAircraft(resolved) {
   course.radius = Math.max(45, ac.span * 1.6);
   topSpeed = statsOf(ac.phys).topKmh / 3.6;
   cockpit.configure(ac, statsOf(ac.phys).topKmh);
+  cockpit3d.configure(ac);
+  applyCamView();
   sound.small = (ac.base.spec?.span || 12) < 12 && ac.phys.engine === 'prop';
   $('throttleLever').classList.toggle('disabled', ac.phys.engine === 'none');
 }
@@ -386,6 +392,7 @@ function resetCameraFrame(cam) {
 function updateCamera(M, dt, fx) {
   const cam = viewer.camera;
   cam.frustum.fov = Cesium.Math.toRadians(fx.fov);
+  cam.frustum.near = cockpit3d.shown ? 0.05 : 1;
   resetCameraFrame(cam);
   const d = ac.cam.dist;
   if (camMode !== 'chase') {
@@ -530,8 +537,11 @@ function toast(msg, ms = 2500) {
 // ---------------------------------------------------------------------------
 function applyCamView() {
   const inCockpit = camMode === 'cockpit' && phase !== 'menu';
-  cockpit.visible = inCockpit;
-  document.body.classList.toggle('cockpit-on', inCockpit);
+  cockpit3d.active = inCockpit;
+  // a loaded 3D cockpit replaces the 2D panel; the normal HUD then stays on screen
+  const panel2d = inCockpit && !cockpit3d.shown;
+  cockpit.visible = panel2d;
+  document.body.classList.toggle('cockpit-on', panel2d);
 }
 
 const lever = { track: $('tlTrack'), knob: $('tlKnob'), fill: $('tlFill'), txt: $('tlTxt'), dragging: false };
@@ -675,6 +685,12 @@ scene.preUpdate.addEventListener(() => {
   }
 
   if (input.consume('pause')) { setPhase('paused'); return; }
+  if (input.consume('cockpit3d')) {
+    prefs.cockpit3d = !prefs.cockpit3d; savePrefs();
+    cockpit3d.enabled = prefs.cockpit3d;
+    applyCamView();
+    toast(t(prefs.cockpit3d ? 'cockpit3dOn' : 'cockpit3dOff'), 1400);
+  }
   if (input.consume('radar')) {
     if (prefs.traffic === 'off') toast(t('tfcIsOff'), 2000);
     else {
@@ -723,6 +739,7 @@ scene.preUpdate.addEventListener(() => {
   warnings.enabled = prefs.warnings !== false;
   warnLabel = warnings.update(state, ac, plane.gear, topSpeed, phase === 'flying');
   const M = plane.update(drawSnap);
+  cockpit3d.update(M);
   const fxOn = !prefs.calm;
   const fx = feel.update(dt, state, topSpeed, fxOn, camMode);
   updateCamera(M, dt, fx);

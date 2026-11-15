@@ -11,3 +11,9 @@ Thumbs.db
 
 # design tool output
 .hallmark/shots/
+
+# model tools: downloads, outputs and packages stay local
+tools/models/src/
+tools/models/out/
+tools/models/node_modules/
+tools/models/package*.json

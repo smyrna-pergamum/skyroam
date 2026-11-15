@@ -66,6 +66,7 @@ const STR = {
     kGear: 'İniş takımı (otomatik; elle aç / topla)',
     kMinimap: 'Mini harita aç / kapat',
     kRadar: 'Radar: 20 km / 50 km / kapalı',
+    kCockpit3d: 'Kokpit: 3D model / gösterge paneli',
     traffic: 'Hava trafiği', tfcOff: 'Kapalı', tfcSim: 'Simülasyon', tfcLive: 'Canlı',
     tfcHintOff: 'Etrafta başka uçak olmaz, radar kapalı.',
     tfcHintSim: 'Yakındaki havalimanlarının gerçek pistlerinden kalkan ve inen, tepeden geçen uçaklar. İnternete hiçbir şey gönderilmez.',
@@ -171,6 +172,7 @@ const STR = {
     coordSet: 'Koordinat ayarlandı.',
     coordHint: 'Ondalık (41.0082 / -73.98) veya derece-dakika-saniye (41°00′29″N) yazabilirsin. Enlem kutusuna “41.0082, 28.9784” gibi bir çift yapıştırırsan ikisi birden alınır. Güney ve batı için eksi ya da S/W kullan.',
     camNose: 'Kamera: burun',
+    cockpit3dOn: 'Kokpit: 3D model', cockpit3dOff: 'Kokpit: gösterge paneli',
     tlHint: 'Gaz kolunu fareyle veya parmağınla sürükle',
   },
   en: {
@@ -238,6 +240,7 @@ const STR = {
     kGear: 'Landing gear (automatic; manual up / down)',
     kMinimap: 'Toggle minimap',
     kRadar: 'Radar: 20 km / 50 km / off',
+    kCockpit3d: 'Cockpit: 3D model / instrument panel',
     traffic: 'Air traffic', tfcOff: 'Off', tfcSim: 'Simulated', tfcLive: 'Live',
     tfcHintOff: 'No other aircraft around you, radar off.',
     tfcHintSim: 'Aircraft departing from and landing on the real runways of nearby airports, and airliners passing overhead. Nothing is sent anywhere.',
@@ -343,6 +346,7 @@ const STR = {
     coordSet: 'Coordinates set.',
     coordHint: 'Use decimal (41.0082 / -73.98) or degrees-minutes-seconds (41°00′29″N). Paste a pair like “41.0082, 28.9784” into the latitude box to fill both. Use minus or S/W for south and west.',
     camNose: 'Camera: nose',
+    cockpit3dOn: 'Cockpit: 3D model', cockpit3dOff: 'Cockpit: instrument panel',
     tlHint: 'Drag the throttle lever with mouse or finger',
   },
 };
