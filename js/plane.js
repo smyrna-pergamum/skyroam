@@ -103,7 +103,8 @@ export class PlaneModel {
 
   /** Optional: a real .glb model (models/*.glb) replaces the generated body once it has loaded.
    *  model.fit: the file is normalised (see models3d.js) and is placed on the generated nose and wheels.
-   *  model.gear === false: the model is gear-up, so the generated (retractable) gear stays. */
+   *  model.gear === false: the model is gear-up, so the generated (retractable) gear stays.
+   *  Otherwise the model's own gear (node "skyroam_gear", legs ending model.gearTop m above the ground) folds. */
   async loadGltf(ac) {
     const token = (this._gltfToken = {});
     const spec = ac.model;
@@ -114,6 +115,8 @@ export class PlaneModel {
       if (token !== this._gltfToken) { m.destroy(); return; }
       this.gltf = this.scene.primitives.add(m);
       this.ownGear = !!spec.fit && spec.gear !== false;
+      this._modelGearTop = spec.gearTop ?? 1;
+      this._gearNode = undefined; this._gearShownAt = null;
       m.show = this._show;
       if (this.primitive) this.primitive.show = false;
       const rot = Cesium.Matrix3.fromRotationZ(((spec.yaw ?? 0) * Math.PI) / 180);
@@ -130,7 +133,10 @@ export class PlaneModel {
     this._hpr.roll = s.roll;
     Cesium.Transforms.headingPitchRollToFixedFrame(this._pos, this._hpr, Cesium.Ellipsoid.WGS84, undefined, this.matrix);
     if (this.primitive) Cesium.Matrix4.clone(this.matrix, this.primitive.modelMatrix);
-    if (this.gltf) Cesium.Matrix4.multiply(this.matrix, this._gltfFix, this.gltf.modelMatrix);
+    if (this.gltf) {
+      Cesium.Matrix4.multiply(this.matrix, this._gltfFix, this.gltf.modelMatrix);
+      if (this.ownGear) this._foldModelGear();
+    }
     if (this.gearPrim) {
       // gear = 1 down, 0 up: legs fold up into the airframe (scale toward the pivot) and then hide.
       const g = Math.max(0.02, this.gear);
@@ -141,6 +147,26 @@ export class PlaneModel {
       this.gearPrim.show = this._gearShown();
     }
     return this.matrix;
+  }
+
+  /** A real model's gear is its "skyroam_gear" node (tools/models/gear.mjs): fold it like the generated gear. */
+  _foldModelGear() {
+    const m = this.gltf;
+    if (!m.ready) return;
+    if (this._gearNode === undefined) {
+      try { this._gearNode = m.getNode('skyroam_gear') || null; } catch { this._gearNode = null; }
+    }
+    const node = this._gearNode;
+    if (!node) return;
+    if (this._gearShownAt === this.gear) return;
+    this._gearShownAt = this.gear;
+    const g = Math.max(0.02, this.gear);
+    // glTF frame (y up): squash the legs toward the top of the gear, where they meet the airframe
+    // a new matrix each change: the node compares against the one it holds
+    const M = Cesium.Matrix4.fromScale(new Cesium.Cartesian3(1, g, 1));
+    M[13] = this._modelGearTop * (1 - g);
+    node.matrix = M;
+    node.show = this.gear > 0.04;
   }
 
   _gearShown() { return this._show && this.gear > 0.04 && !(this.gltf && this.ownGear); }

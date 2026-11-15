@@ -56,7 +56,7 @@ Values are checked and only change where you start; the address bar is cleaned a
   - Each model is generated from the type's real dimensions and layout: smooth lofted fuselage, tapered and swept wings, T-tails, twin tails, canards, deltas, biplanes and triplanes, engine nacelles and propellers, canopies, cabin windows, winglets and livery
   - Each flight model comes from the type's real top and stall speeds and handling class (supersonic speeds are compressed so the map can keep up)
   - Search by name, maker, country or year, and filter by group
-  - **Real 3D models** for 16 types (KAAN, Hürjet, F-16, F-15, F-35, F/A-18C, F-14, F-4E, F-5E, F-117, MiG-23, C-17, King Air 350, Cessna 182, Spitfire); the generated model shows until the `.glb` has loaded
+  - **Real 3D models** for 16 types (KAAN, Hürjet, F-16, F-15, F-35, F/A-18C, F-14, F-4E, F-5E, F-117, MiG-23, C-17, King Air 350, Cessna 182, Spitfire); the generated model shows until the `.glb` has loaded. Their landing gear retracts too: the model's own wheels fold away, or, for models drawn gear-up, the generated gear is used
   - Optional: drop a `.glb` model into the project and point an aircraft's `model` field at it
 - **Retractable landing gear**: folds up after take-off and comes down automatically near the ground (or press `G`). Landing with the gear up counts as a crash.
 - **Hangar**: modify any aircraft (engine power, wingspan, agility, three colours), name it and save it. Changes show live on the plane and in its stats.
@@ -96,6 +96,9 @@ Values are checked and only change where you start; the address bar is cleaned a
   - turboprops, business jets and early airliners: King Air 350
   - light single-engine planes: Cessna 182 (G1000)
   - gliders, UAVs and open cockpits keep the 2D panel
+  - **live screens**: the displays and gauges of every 3D cockpit show the flight as it happens: PFD (attitude, speed, altitude tapes), navigation display (compass, traffic, wind), engine and systems pages (N1/EGT, fuel, gear, G), HUD symbology on the combiner, UFC text and round gauges (airspeed, attitude, altimeter, heading, vertical speed, turn)
+  - **Su-57**: its own cockpit, built on the F/A-18C cockpit after photos of the real one: frameless canopy, light blue-grey panels and a wide round HUD
+  - the view widens a little and looks slightly down so the panel is in sight
   - the cockpit loads the first time you use the cockpit view (the 2D panel shows meanwhile); the normal HUD stays on screen. `K` switches between the 3D cockpit and the 2D instrument panel
 - Three cameras: chase, cockpit interior, nose
 - **Speed you can feel**: the field of view widens with speed and kicks when you open the throttle, the chase camera falls back while accelerating, and there are speed lines and a light buffet at high speed, on the ground roll and in a stall. "Reduce camera motion" in the menu turns these off.
@@ -211,7 +214,8 @@ js/traffic.js     air traffic (simulated or live), 3D display, radar scope
 js/menu.js        menu tabs, place picker + search + coordinates, aircraft grid, hangar, welcome
 js/cockpit.js     cockpit interiors on a canvas overlay (GA, glass, fighter, glider), rain on the windscreen
 js/cockpit3d.js   3D cockpit model around the camera in cockpit view, placed on the aircraft's eye point
-js/models3d.js    real 3D models: attributions, shared cockpits and which cockpit each aircraft class gets
+js/screens3d.js   live screens of the 3D cockpits: instruments drawn into each display, projected every frame
+js/models3d.js    real 3D models: attributions, shared cockpits, which cockpit each aircraft gets, live display positions
 js/fleet.js       108 real aircraft: dimensions, wing/tail/engine layout, speeds, livery
 js/fleetgen.js    turns a fleet entry into a 3D model (lofted meshes) and a flight model
 js/aircraft.js    roster, mods (hangar), old-id aliases
@@ -236,7 +240,7 @@ models/cockpits/  cockpit sections cut from those models (glass removed), shared
 site/img/         screenshot from the game (website fallback and preview image)
 ```
 
-Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the flight model are generated from it. To use a real 3D model instead, put a `.glb` in `models/` (metres, glTF +Y up, nose +Z) and add `model: { url: 'models/name.glb' }` to the entry; the generated model shows until it has loaded. With `fit: true` the file must be normalised (nose tip at z = 0, centred on x = 0, wheels on y = 0) and is placed on the generated nose and wheels; add `gear: false` for a gear-up model so the generated gear stays. `eye: [x, y, z]` (pilot's eye in the model, x to the left) gives the aircraft its own 3D cockpit, and `cockpit:` points at a cut-down version of the model for it. Without `eye`, the class cockpit from `js/models3d.js` is used. Adding a place: add a row to `js/places.js`.
+Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the flight model are generated from it. To use a real 3D model instead, put a `.glb` in `models/` (metres, glTF +Y up, nose +Z) and add `model: { url: 'models/name.glb' }` to the entry; the generated model shows until it has loaded. With `fit: true` the file must be normalised (nose tip at z = 0, centred on x = 0, wheels on y = 0) and is placed on the generated nose and wheels; add `gear: false` for a gear-up model so the generated gear stays. `eye: [x, y, z]` (pilot's eye in the model, x to the left) gives the aircraft its own 3D cockpit, and `cockpit:` points at a cut-down version of the model for it. A model whose wheels are split into a `skyroam_gear` node (`tools/models/gear.mjs`) folds them; give the height where the legs meet the airframe as `gearTop`. Live screens are listed per cockpit file in `DISPLAYS` (`js/models3d.js`). Without `eye`, the class cockpit from `js/models3d.js` is used. Adding a place: add a row to `js/places.js`.
 
 ## Roadmap ideas
 
@@ -274,7 +278,7 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
     - `c-17.glb`, `cockpits/airliner.glb`: "C-17A Globemaster III Cockpit" ([source](https://sketchfab.com/3d-models/c-17a-globemaster-iii-cockpit-b89765a71c334eaab52c52b708d0c295))
     - `king-air-350.glb`, `cockpits/turboprop.glb`: "KA350 King Air Flight Deck" ([source](https://sketchfab.com/3d-models/ka350-king-air-flight-deck-380f971d24ba488e993f6cc177fc5732))
     - `cessna-182.glb`, `cockpits/ga.glb`: "Cessna 182 Skylane" ([source](https://sketchfab.com/3d-models/cessna-182-skylane-2dde31b1aa8f484f96bb7ee9d9c5ad26))
-  - the other files in `models/cockpits/` are cut from the model of the same name above
+  - the other files in `models/cockpits/` are cut from the model of the same name above; `cockpits/su-57.glb` is the F/A-18C cockpit restyled
 - Sounds from [Pixabay](https://pixabay.com/sound-effects/) under the [Pixabay Content License](https://pixabay.com/service/license-summary/):
   - `prop.mp3`: "Propeller.wav" by freesound_community
   - `jet.mp3`: "Jet Engine" by freesound_community

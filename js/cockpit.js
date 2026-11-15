@@ -1099,3 +1099,6 @@ export class Cockpit {
     yokeGA(g, cx, h + r * 0.12, r, d.inp);
   }
 }
+
+// instrument drawers, shared with the live screens of the 3D cockpits (screens3d.js)
+export { pfd, nd, eicas, asi, attitudeDial, altimeter, headingDial, vsiDial, turnDial, text, line, circle, poly, GRN, AMB, CYN, MAG, WHT };
