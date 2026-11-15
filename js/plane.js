@@ -2,8 +2,20 @@
 // Builds the selected aircraft from its part list (see aircraft.js) as one Cesium Primitive.
 // Body frame: +x forward, +y left, +z up (Cesium's heading/pitch/roll frame).
 
+import { creditFor } from './models3d.js';
+
 const FIXED_COLORS = { k: '#1f2937', g: '#0b1a2e', m: '#9ca3af', c: '#36536e' };
 const D2R = Math.PI / 180;
+
+/** Rough front-most x and lowest z of a part (enough to line a real model up with the generated one). */
+function partFront(p) {
+  if (p.s === 'mesh') { let m = -Infinity; for (let i = 0; i < p.pos.length; i += 3) m = Math.max(m, p.pos[i]); return m; }
+  return p.p[0] + (p.s === 'ell' ? p.d[0] : Math.max(...p.d) / 2);
+}
+function partBottom(p) {
+  if (p.s === 'mesh') { let m = Infinity; for (let i = 2; i < p.pos.length; i += 3) m = Math.min(m, p.pos[i]); return m; }
+  return p.p[2] - (p.s === 'ell' ? p.d[2] : p.s === 'cyl' ? Math.max(p.d[1], p.d[2]) : p.d[2] / 2);
+}
 
 function partMatrix(part) {
   if (part.s === 'mesh') return Cesium.Matrix4.IDENTITY;
@@ -74,9 +86,13 @@ export class PlaneModel {
       show: this._show,
     }));
     if (this.gltf) { this.scene.primitives.remove(this.gltf); this.gltf = null; }
-    if (ac.model) this.loadGltf(ac);
     const body = ac.parts.filter(p => p.tag !== 'gear');
     const gearParts = ac.parts.filter(p => p.tag === 'gear');
+    // where a normalised .glb goes: its nose tip on the generated nose, its wheels (or belly) on ours
+    this.noseX = Math.max(...body.map(partFront));
+    this.bellyZ = Math.min(...body.map(partBottom));
+    this.gearH = ac.phys.gearH;
+    if (ac.model) this.loadGltf(ac);
     this.primitive = make(body);
     // Retract pivot: the highest point of the gear (where the legs meet the airframe).
     this.gearTop = gearParts.reduce((m, p) => Math.max(m, p.p[2] + p.d[2] / 2), -Infinity);
@@ -85,16 +101,24 @@ export class PlaneModel {
     Cesium.Matrix4.clone(this.matrix, this.primitive.modelMatrix);
   }
 
-  /** Optional: a real .glb model (models/*.glb) replaces the generated body once it has loaded. */
+  /** Optional: a real .glb model (models/*.glb) replaces the generated body once it has loaded.
+   *  model.fit: the file is normalised (see models3d.js) and is placed on the generated nose and wheels.
+   *  model.gear === false: the model is gear-up, so the generated (retractable) gear stays. */
   async loadGltf(ac) {
     const token = (this._gltfToken = {});
+    const spec = ac.model;
+    const url = spec.url || spec;
     try {
-      const m = await Cesium.Model.fromGltfAsync({ url: ac.model.url || ac.model, scale: ac.model.scale || 1 });
-      if (token !== this._gltfToken) return;
+      const credit = creditFor(url);
+      const m = await Cesium.Model.fromGltfAsync({ url, scale: spec.scale || 1, credit: credit ? new Cesium.Credit(credit, false) : undefined });
+      if (token !== this._gltfToken) { m.destroy(); return; }
       this.gltf = this.scene.primitives.add(m);
+      this.ownGear = !!spec.fit && spec.gear !== false;
       m.show = this._show;
       if (this.primitive) this.primitive.show = false;
-      this._gltfFix = Cesium.Matrix4.fromRotationTranslation(Cesium.Matrix3.fromRotationZ(((ac.model.yaw ?? 0) * Math.PI) / 180));
+      const rot = Cesium.Matrix3.fromRotationZ(((spec.yaw ?? 0) * Math.PI) / 180);
+      const at = spec.fit ? new Cesium.Cartesian3(this.noseX, 0, spec.gear === false ? this.bellyZ : -this.gearH) : Cesium.Cartesian3.ZERO;
+      this._gltfFix = Cesium.Matrix4.fromRotationTranslation(rot, at);
     } catch (e) { console.warn('Model failed, using the generated one', e); }
   }
 
@@ -114,10 +138,12 @@ export class PlaneModel {
       Cesium.Matrix4.fromScale(new Cesium.Cartesian3(1, 1, g), fold);
       fold[14] = this.gearTop * (1 - g);
       Cesium.Matrix4.multiply(this.matrix, fold, this.gearPrim.modelMatrix);
-      this.gearPrim.show = this._show && this.gear > 0.04;
+      this.gearPrim.show = this._gearShown();
     }
     return this.matrix;
   }
 
-  set visible(v) { this._show = v; if (this.primitive) this.primitive.show = v && !this.gltf; if (this.gltf) this.gltf.show = v; if (this.gearPrim) this.gearPrim.show = v && this.gear > 0.04; }
+  _gearShown() { return this._show && this.gear > 0.04 && !(this.gltf && this.ownGear); }
+
+  set visible(v) { this._show = v; if (this.primitive) this.primitive.show = v && !this.gltf; if (this.gltf) this.gltf.show = v; if (this.gearPrim) this.gearPrim.show = this._gearShown(); }
 }

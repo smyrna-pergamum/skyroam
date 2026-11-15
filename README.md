@@ -1,8 +1,8 @@
 # SkyRoam ✈
 
-**A browser flight game over the real world.** Pick one of 101 real aircraft, pick any town on Earth or a world-famous historic site, and fly. No install, no account, no server: a static site with a website and the game.
+**A browser flight game over the real world.** Pick one of 108 real aircraft, pick any town on Earth or a world-famous historic site, and fly. No install, no account, no server: a static site with a website and the game.
 
-**Gerçek dünya haritası üzerinde tarayıcıda uçuş oyunu.** 101 gerçek uçaktan birini seç, dünyadaki herhangi bir yeri ya da ünlü bir tarihi alanı seç ve uç. Kurulum yok, hesap yok, sunucu yok: bir web sitesi ve oyundan oluşan statik bir site.
+**Gerçek dünya haritası üzerinde tarayıcıda uçuş oyunu.** 108 gerçek uçaktan birini seç, dünyadaki herhangi bir yeri ya da ünlü bir tarihi alanı seç ve uç. Kurulum yok, hesap yok, sunucu yok: bir web sitesi ve oyundan oluşan statik bir site.
 
 | | |
 |---|---|
@@ -52,10 +52,11 @@ Values are checked and only change where you start; the address bar is cleaned a
 ## Features / Özellikler
 
 - **Real world** via [CesiumJS](https://cesium.com/platform/cesiumjs/): satellite imagery, real terrain and 3D buildings
-- **101 real-world aircraft** in four groups (commercial 27, civil 24, military 26, historic 24): A320neo, 737 MAX, 777, 787, A380, Concorde, Cessna 172, Cirrus SR22, ASK 21 glider, F-16, F-35, Eurofighter, KAAN, Hürjet, Hürkuş, Bayraktar TB2, Akıncı, B-2, C-130J, Wright Flyer, Fokker Dr.I, Spitfire, P-51, DC-3, Vecihi K-VI, Nu.D.36 and many more
+- **108 real-world aircraft** in four groups (commercial 27, civil 25, military 32, historic 24): A320neo, 737 MAX, 777, 787, A380, Concorde, Cessna 172, Cessna 182, Cirrus SR22, ASK 21 glider, F-16, F-35, F-14, F-4 Phantom, F-117, MiG-23, Eurofighter, KAAN, Hürjet, Hürkuş, Bayraktar TB2, Akıncı, B-2, C-130J, Wright Flyer, Fokker Dr.I, Spitfire, P-51, DC-3, Vecihi K-VI, Nu.D.36 and many more
   - Each model is generated from the type's real dimensions and layout: smooth lofted fuselage, tapered and swept wings, T-tails, twin tails, canards, deltas, biplanes and triplanes, engine nacelles and propellers, canopies, cabin windows, winglets and livery
   - Each flight model comes from the type's real top and stall speeds and handling class (supersonic speeds are compressed so the map can keep up)
   - Search by name, maker, country or year, and filter by group
+  - **Real 3D models** for 16 types (KAAN, Hürjet, F-16, F-15, F-35, F/A-18C, F-14, F-4E, F-5E, F-117, MiG-23, C-17, King Air 350, Cessna 182, Spitfire); the generated model shows until the `.glb` has loaded
   - Optional: drop a `.glb` model into the project and point an aircraft's `model` field at it
 - **Retractable landing gear**: folds up after take-off and comes down automatically near the ground (or press `G`). Landing with the gear up counts as a crash.
 - **Hangar**: modify any aircraft (engine power, wingspan, agility, three colours), name it and save it. Changes show live on the plane and in its stats.
@@ -88,6 +89,14 @@ Values are checked and only change where you start; the address bar is cleaned a
   - the static parts are drawn once and cached, so the detailed cockpits cost no frame rate
   - **Rain and snow on the windscreen**: drops bead on the glass and the airstream pushes them up and out at speed; snowflakes stick and melt; flying through cloud mists the glass
   - minimal panel with variometer and a yaw string (glider)
+- **3D cockpits**: in the cockpit view you sit inside a real 3D cockpit model that moves with the aircraft. 11 types use their own interior (F-16, F-15, F-35, F/A-18C, F-14, F-4E, F-117, MiG-23, C-17, King Air, Cessna 182); every other aircraft gets the shared cockpit of its class:
+  - jet fighters and modern trainers: F/A-18C Hornet
+  - piston fighters and aerobatic planes before the jet age: Spitfire
+  - airliners and large transports: C-17 flight deck
+  - turboprops, business jets and early airliners: King Air 350
+  - light single-engine planes: Cessna 182 (G1000)
+  - gliders, UAVs and open cockpits keep the 2D panel
+  - the cockpit loads the first time you use the cockpit view (the 2D panel shows meanwhile); the normal HUD stays on screen. `K` switches between the 3D cockpit and the 2D instrument panel
 - Three cameras: chase, cockpit interior, nose
 - **Speed you can feel**: the field of view widens with speed and kicks when you open the throttle, the chase camera falls back while accelerating, and there are speed lines and a light buffet at high speed, on the ground roll and in a stall. "Reduce camera motion" in the menu turns these off.
 - **Minimap** (bottom right): a heading-up OpenStreetMap with a compass ring, coordinates and the name of the place below you. Press `N` to toggle it.
@@ -162,6 +171,7 @@ The proxy only answers `GET /v2/point/{lat}/{lon}/{nm}` (at most 100 nm), only f
 | Landing gear (manual override) | `G` | |
 | Minimap | `N` | |
 | Radar range (20 km / 50 km / off) | `V` | |
+| Cockpit: 3D model / instrument panel | `K` | |
 | Time of day (local / sunrise / day / sunset / night) | `T` | |
 | Restart after crash | `Enter` | A |
 
@@ -200,7 +210,9 @@ js/missions.js    take-off and landing missions, runway and PAPI lights
 js/traffic.js     air traffic (simulated or live), 3D display, radar scope
 js/menu.js        menu tabs, place picker + search + coordinates, aircraft grid, hangar, welcome
 js/cockpit.js     cockpit interiors on a canvas overlay (GA, glass, fighter, glider), rain on the windscreen
-js/fleet.js       101 real aircraft: dimensions, wing/tail/engine layout, speeds, livery
+js/cockpit3d.js   3D cockpit model around the camera in cockpit view, placed on the aircraft's eye point
+js/models3d.js    real 3D models: attributions, shared cockpits and which cockpit each aircraft class gets
+js/fleet.js       108 real aircraft: dimensions, wing/tail/engine layout, speeds, livery
 js/fleetgen.js    turns a fleet entry into a 3D model (lofted meshes) and a flight model
 js/aircraft.js    roster, mods (hangar), old-id aliases
 js/warnings.js    cockpit warnings: stall horn / shaker, clacker, GPWS and TCAS voice callouts
@@ -217,12 +229,14 @@ js/storage.js     safe localStorage helpers, token storage
 js/i18n.js        Turkish / English strings
 sounds/           Pixabay sound effects (see credits)
 tools/traffic-proxy.js  Cloudflare Worker for live air traffic (each player runs their own)
+tools/models/     scripts that turn Sketchfab .glb downloads into SkyRoam models and cockpits
 data/airports.json  airports and runways (OurAirports, public domain), loaded only when needed
-models/           optional .glb models that replace the generated one (Hürjet)
+models/           real .glb models that replace the generated one (see credits for their licences)
+models/cockpits/  cockpit sections cut from those models (glass removed), shared by aircraft class or per type
 site/img/         screenshot from the game (website fallback and preview image)
 ```
 
-Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the flight model are generated from it. To use a real 3D model instead, put a `.glb` in `models/` (metres, glTF +Y up, nose +Z) and add `model: { url: 'models/name.glb' }` to the entry; the generated model shows until it has loaded. Adding a place: add a row to `js/places.js`.
+Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the flight model are generated from it. To use a real 3D model instead, put a `.glb` in `models/` (metres, glTF +Y up, nose +Z) and add `model: { url: 'models/name.glb' }` to the entry; the generated model shows until it has loaded. With `fit: true` the file must be normalised (nose tip at z = 0, centred on x = 0, wheels on y = 0) and is placed on the generated nose and wheels; add `gear: false` for a gear-up model so the generated gear stays. `eye: [x, y, z]` (pilot's eye in the model, x to the left) gives the aircraft its own 3D cockpit, and `cockpit:` points at a cut-down version of the model for it. Without `eye`, the class cockpit from `js/models3d.js` is used. Adding a place: add a row to `js/places.js`.
 
 ## Roadmap ideas
 
@@ -243,6 +257,24 @@ Adding an aircraft: add an entry to `FLEET` in `js/fleet.js`. The model and the 
 - City lights (game and website): [NASA Black Marble](https://earthobservatory.nasa.gov/features/NightLights) via NASA GIBS (public domain)
 - Minimap: map tiles and place names © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL), via tile.openstreetmap.org and Nominatim
 - Aircraft models are generated in code from public dimensions for this project. They are simplified likenesses, not official models. The Hürjet `.glb` was built for SkyRoam in Blender from public views and dimensions; it is an approximation, not TUSAŞ's CAD model. Aircraft names are their makers' trademarks and are used only to identify the types.
+- 3D aircraft and cockpit models from [Sketchfab](https://sketchfab.com/), used under their Creative Commons licences. They were modified for SkyRoam: scaled to the real size, turned to face forward, simplified, textures compressed, cockpit sections cut out and glass removed. The `.glb` files in `models/` keep their own licences, which differ from the rest of this project; files under CC BY-NC-SA may not be used commercially and changes to them must be shared under the same licence. The attribution also shows in the in-game credit list (Data attribution) while a model is on screen.
+  - `kaan.glb`: "KAAN - Milli Muharip Uçak - KAAN 3D MODEL" by [Özcan Özaltın](https://sketchfab.com/ozcan_36), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([source](https://sketchfab.com/3d-models/kaan-milli-muharip-ucak-kaan-3d-model-43fd80d277bf40aea2cac1cc4d9de46e))
+  - `f-16c.glb`: "F-16CM PoBIT with AGM-88 HARM" by [Jeyhun1985](https://sketchfab.com/Jeyhun1985), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([source](https://sketchfab.com/3d-models/f-16cm-pobit-with-agm-88-harm-292fa2445c4d4009b346157da7ded2da))
+  - `f-15e.glb`: "McDonnell Douglas F-15 Eagle Fighter Jet" by [Muhamad Mirza Arrafi](https://sketchfab.com/MirzaArrafiERV_45), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([source](https://sketchfab.com/3d-models/mcdonnell-douglas-f-15-eagle-fighter-jet-703a300c4e0546429a9f9038b3344a5d))
+  - `f-35a.glb`: "F-35 Lightning II - Fighter Jet - Free" by [bohmerang](https://sketchfab.com/bohmerang), [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) ([source](https://sketchfab.com/3d-models/f-35-lightning-ii-fighter-jet-free-b1ab1c0090e34b0fbfe667e706023e6d))
+  - `f-4e.glb`: "F-4E Phantom II" by [Kenny3D89](https://sketchfab.com/Kenny3D89), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([source](https://sketchfab.com/3d-models/f-4e-phantom-ii-414342cad1e84b20aadace5de69c9569))
+  - `f-5e.glb`: "F-5 Gear Up Opaque Cockpit" by [David.Von.Raesfeld](https://sketchfab.com/David.Von.Raesfeld), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([source](https://sketchfab.com/3d-models/f-5-gear-up-opaque-cockpit-08160f9f334649769e2385e119f629c9))
+  - `spitfire-ix.glb`: "Spitfire with cockpit V3" by [TonyWony](https://sketchfab.com/TonyWony), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([source](https://sketchfab.com/3d-models/spitfire-with-cockpit-v3-ffc34b5d88554d9c8f637ea8feed12ad))
+  - `cockpits/warbird.glb`: "The Spitfire Cockpit experience" by [Alexios Apokaukos](https://sketchfab.com/Alexios_Apokaukos), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([source](https://sketchfab.com/3d-models/the-spitfire-cockpit-experience-fff15c46761b43049520cca82b5b4334))
+  - by [VTX](https://sketchfab.com/VTX_car), all [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/):
+    - `f-14a.glb`: "F-14A Tomcat Early" ([source](https://sketchfab.com/3d-models/f-14a-tomcat-early-d76edb7f887d47d99a4ed1eb7b76567c))
+    - `f-117a.glb`: "Lockheed F-117 Nighthawk" ([source](https://sketchfab.com/3d-models/lockheed-f-117-nighthawk-d73e29c9b773429c8ccc5c7d602e4f8d))
+    - `mig-23mf.glb`: "MiG-23MF Flogger" ([source](https://sketchfab.com/3d-models/mig-23mf-flogger-152b2a016df74709949a5e4edfd840ea))
+    - `fa-18c.glb`, `cockpits/fighter.glb`: "F/A-18C Hornet Cockpit Photogrammetry" ([source](https://sketchfab.com/3d-models/fa18c-hornet-cockpit-photogrammetry-ae1106f58d354c7fb752bd2f513b94f5))
+    - `c-17.glb`, `cockpits/airliner.glb`: "C-17A Globemaster III Cockpit" ([source](https://sketchfab.com/3d-models/c-17a-globemaster-iii-cockpit-b89765a71c334eaab52c52b708d0c295))
+    - `king-air-350.glb`, `cockpits/turboprop.glb`: "KA350 King Air Flight Deck" ([source](https://sketchfab.com/3d-models/ka350-king-air-flight-deck-380f971d24ba488e993f6cc177fc5732))
+    - `cessna-182.glb`, `cockpits/ga.glb`: "Cessna 182 Skylane" ([source](https://sketchfab.com/3d-models/cessna-182-skylane-2dde31b1aa8f484f96bb7ee9d9c5ad26))
+  - the other files in `models/cockpits/` are cut from the model of the same name above
 - Sounds from [Pixabay](https://pixabay.com/sound-effects/) under the [Pixabay Content License](https://pixabay.com/service/license-summary/):
   - `prop.mp3`: "Propeller.wav" by freesound_community
   - `jet.mp3`: "Jet Engine" by freesound_community
