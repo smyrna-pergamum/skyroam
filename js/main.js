@@ -10,6 +10,7 @@ import { readJSON, writeJSON, getToken } from './storage.js';
 import { initMenu } from './menu.js';
 import { Cockpit } from './cockpit.js';
 import { Cockpit3D } from './cockpit3d.js';
+import { Screens3D } from './screens3d.js';
 import { statsOf, baseById } from './aircraft.js';
 import { Feel } from './feel.js';
 import { MiniMap } from './minimap.js';
@@ -174,6 +175,7 @@ const course = new RingCourse(viewer);
 const sound = new EngineSound();
 const cockpit = new Cockpit($('cockpit'));
 const cockpit3d = new Cockpit3D(scene);
+const screens3d = new Screens3D(scene);
 cockpit3d.enabled = prefs.cockpit3d !== false;
 cockpit3d.onReady = () => applyCamView();
 const feel = new Feel($('feel'));
@@ -234,6 +236,7 @@ function setAircraft(resolved) {
   topSpeed = statsOf(ac.phys).topKmh / 3.6;
   cockpit.configure(ac, statsOf(ac.phys).topKmh);
   cockpit3d.configure(ac);
+  screens3d.configure(ac, statsOf(ac.phys).topKmh, cockpit3d.spec && cockpit3d.spec.displays);
   applyCamView();
   sound.small = (ac.base.spec?.span || 12) < 12 && ac.phys.engine === 'prop';
   $('throttleLever').classList.toggle('disabled', ac.phys.engine === 'none');
@@ -389,10 +392,14 @@ function resetCameraFrame(cam) {
   if (!Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) cam.lookAtTransform(Cesium.Matrix4.IDENTITY);
 }
 
+const COCKPIT_FOV_EXTRA = 16, COCKPIT_LOOK_DOWN = Cesium.Math.toRadians(7);
+
 function updateCamera(M, dt, fx) {
   const cam = viewer.camera;
-  cam.frustum.fov = Cesium.Math.toRadians(fx.fov);
-  cam.frustum.near = cockpit3d.shown ? 0.05 : 1;
+  // inside a 3D cockpit: a wider view, tilted a little down, so the panel and its screens are in sight
+  const in3d = cockpit3d.shown && camMode === 'cockpit';
+  cam.frustum.fov = Cesium.Math.toRadians(fx.fov + (in3d ? COCKPIT_FOV_EXTRA : 0));
+  cam.frustum.near = in3d ? 0.05 : 1;
   resetCameraFrame(cam);
   const d = ac.cam.dist;
   if (camMode !== 'chase') {
@@ -402,6 +409,7 @@ function updateCamera(M, dt, fx) {
     C3.normalize(C3.subtract(ahead, eye, tmp.dir), tmp.dir);
     C3.normalize(Cesium.Matrix4.multiplyByPointAsVector(M, BODY_UP, tmp.up), tmp.up);
     cam.setView({ destination: eye, orientation: { direction: tmp.dir, up: tmp.up } });
+    if (in3d) cam.lookDown(COCKPIT_LOOK_DOWN);
     applyShake(cam, fx);
     return;
   }
@@ -542,6 +550,7 @@ function applyCamView() {
   const panel2d = inCockpit && !cockpit3d.shown;
   cockpit.visible = panel2d;
   document.body.classList.toggle('cockpit-on', panel2d);
+  if (!cockpit3d.shown) screens3d.clear();
 }
 
 const lever = { track: $('tlTrack'), knob: $('tlKnob'), fill: $('tlFill'), txt: $('tlTxt'), dragging: false };
@@ -763,8 +772,10 @@ scene.preUpdate.addEventListener(() => {
     cockpit.wind = weather.windAt(state.agl);
     cockpit.gear = plane.gear;
     cockpit.traffic = prefs.traffic !== 'off' ? trafficRel : null;
-    cockpit.draw(view, input.axes, dt, gameMode === 'rings' && course.active ? course.navInfo(state) : null);
-  }
+    const nav = gameMode === 'rings' && course.active ? course.navInfo(state) : null;
+    if (cockpit3d.shown) screens3d.draw(M, cockpit3d.fix, view, input.axes, dt, nav, { gear: plane.gear, wind: cockpit.wind, traffic: cockpit.traffic });
+    else { screens3d.clear(); cockpit.draw(view, input.axes, dt, nav); }
+  } else screens3d.clear();
   sound.update(state.throttle, state.speed, phase === 'flying', ac.phys.engine);
 
   if (state.crashed && phase === 'flying') onCrash(state.crashReason);
